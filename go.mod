@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.0
-	github.com/serg666/repository v0.0.0-20220217144422-4a3622e095c6
+	github.com/serg666/repository v0.0.0-20220217182035-61c9c3dec864
 	gopkg.in/yaml.v2 v2.4.0
 )
 
