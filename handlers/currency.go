@@ -60,10 +60,18 @@ func (ch *currencyHandler) GetCurrenciesHandler(c *gin.Context) {
 		return
 	}
 
-	overall, currencies := ch.store.Query(repository.NewCurrencySpecificationWithLimitAndOffset(
+	err, overall, currencies := ch.store.Query(repository.NewCurrencySpecificationWithLimitAndOffset(
 		req.Limit,
 		req.Offset,
 	))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"overall": overall,
 		"currencies": currencies,
@@ -79,7 +87,14 @@ func (ch *currencyHandler) GetCurrencyHandler(c *gin.Context) {
 		return
 	}
 
-	_, currencies := ch.store.Query(repository.NewCurrencySpecificationByID(id))
+	err, _, currencies := ch.store.Query(repository.NewCurrencySpecificationByID(id))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
 
 	if len(currencies) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -115,8 +130,18 @@ func (ch *currencyHandler) PatchCurrencyHandler(c *gin.Context) {
 		CharCode:    req.CharCode,
 		Exponent:    req.Exponent,
 	}
-	if err := ch.store.Update(currency); err != nil {
+
+	err, notfound := ch.store.Update(currency)
+
+	if notfound {
 		c.JSON(http.StatusNotFound, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err !=  nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
 		return
@@ -135,8 +160,18 @@ func (ch *currencyHandler) DeleteCurrencyHandler(c *gin.Context) {
 	}
 
 	currency := &repository.Currency{Id: id}
-	if err := ch.store.Delete(currency); err != nil {
+
+	err, notfound := ch.store.Delete(currency)
+
+	if notfound {
 		c.JSON(http.StatusNotFound, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err !=  nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
 		return

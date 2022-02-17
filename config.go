@@ -39,6 +39,11 @@ type Config struct {
 			Idle time.Duration `yaml:"idle"`
 		} `yaml:"timeout"`
 	} `yaml:"server"`
+	Databases struct {
+		Default struct {
+			Dsn string `yaml:"dsn"`
+		} `yaml:"default"`
+	} `yaml:"databases"`
 }
 
 
@@ -55,10 +60,15 @@ func (cfg *Config) RunServer() {
 	)
 	defer cancel()
 
+	handler, err := MakeHandler(cfg)
+	if err != nil {
+		log.Fatalf("Server failed to start due to err: %v", err)
+	}
+
 	// Define server options
 	server := &http.Server{
 		Addr:           cfg.Server.Host + ":" + cfg.Server.Port,
-		Handler:        MakeHandler(),
+		Handler:        handler,
 		ReadTimeout:    cfg.Server.Timeout.Read * time.Second,
 		WriteTimeout:   cfg.Server.Timeout.Write * time.Second,
 		IdleTimeout:    cfg.Server.Timeout.Idle * time.Second,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -8,7 +9,12 @@ import (
 	"github.com/serg666/repository"
 )
 
-func MakeHandler() *gin.Engine {
+func MakeHandler(cfg *Config) (*gin.Engine, error) {
+	pgPool, err := repository.MakePgPoolFromDSN(cfg.Databases.Default.Dsn)
+	if err != nil {
+		return nil, fmt.Errorf("Can not make pg pool due to: %v", err)
+	}
+
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("notempty", func(fl validator.FieldLevel) bool {
 			return fl.Field().Len() != 0
@@ -19,7 +25,8 @@ func MakeHandler() *gin.Engine {
 	handler := gin.Default()
 
 	profileStore := repository.NewOrderedMapProfileStore()
-	currencyStore := repository.NewOrderedMapCurrencyStore()
+	//currencyStore := repository.NewOrderedMapCurrencyStore()
+	currencyStore := repository.NewPGPoolCurrencyStore(pgPool)
 
 	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
 
@@ -39,5 +46,5 @@ func MakeHandler() *gin.Engine {
 	handler.GET("/currencies/:id", currencyHandler.GetCurrencyHandler)
 	handler.PATCH("/currencies/:id", currencyHandler.PatchCurrencyHandler)
 
-	return handler
+	return handler, nil
 }

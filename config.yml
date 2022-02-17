@@ -6,3 +6,6 @@ server:
     read: 15
     write: 10
     idle: 5
+databases:
+  default:
+    dsn: dbname=admin user=admin password=qazwsx host=127.0.0.1 pool_max_conns=10

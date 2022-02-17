@@ -40,8 +40,18 @@ func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
 	}
 
 	profile := &repository.Profile{Id: id}
-	if err := ph.store.Delete(profile); err != nil {
+
+	err, notfound := ph.store.Delete(profile)
+
+	if notfound {
 		c.JSON(http.StatusNotFound, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err !=  nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
 		return
@@ -59,7 +69,14 @@ func (ph *profileHandler) GetProfileHandler(c *gin.Context) {
 		return
 	}
 
-	_, profiles := ph.store.Query(repository.NewProfileSpecificationByID(id))
+	err, _, profiles := ph.store.Query(repository.NewProfileSpecificationByID(id))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
 
 	if len(profiles) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -91,7 +108,15 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 	var currency *repository.Currency
 
 	if req.CurrencyCode != nil {
-		_, currencies := ph.currencyStore.Query(repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
+		err, _, currencies := ph.currencyStore.Query(repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+
 		if len(currencies) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"message": fmt.Sprintf("Currency with CurrencyCode=%v not found", *req.CurrencyCode),
@@ -107,8 +132,18 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 		Description: req.Description,
 		Currency:    currency,
 	}
-	if err := ph.store.Update(profile); err != nil {
+
+	err, notfound := ph.store.Update(profile)
+
+	if notfound {
 		c.JSON(http.StatusNotFound, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err !=  nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
 		return
@@ -126,7 +161,15 @@ func (ph *profileHandler) CreateProfileHandler(c *gin.Context) {
 		return
 	}
 
-	_, currencies := ph.currencyStore.Query(repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
+	err, _, currencies := ph.currencyStore.Query(repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
 	if len(currencies) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": fmt.Sprintf("Currency with CurrencyCode=%v not found", *req.CurrencyCode),
@@ -158,10 +201,18 @@ func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 		return
 	}
 
-	overall, profiles := ph.store.Query(repository.NewProfileSpecificationWithLimitAndOffset(
+	err, overall, profiles := ph.store.Query(repository.NewProfileSpecificationWithLimitAndOffset(
 		req.Limit,
 		req.Offset,
 	))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"overall": overall,
 		"profiles": profiles,
