@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin/binding"
@@ -17,9 +18,15 @@ func MakeHandler(cfg *Config) (*gin.Engine, error) {
 		return nil, fmt.Errorf("Can not make pg pool due to: %v", err)
 	}
 
-	profileStore := repository.NewOrderedMapProfileStore()
-	//currencyStore := repository.NewOrderedMapCurrencyStore()
-	currencyStore := repository.NewPGPoolCurrencyStore(pgPool)
+	profileStore := repository.NewOrderedMapProfileStore(func (c interface{}) *log.Logger {
+		return log.Default()
+	})
+	//currencyStore := repository.NewOrderedMapCurrencyStore(func (c interface{}) *log.Logger {
+	//	return log.Default()
+	//})
+	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, func (c interface{}) *log.Logger {
+		return log.Default()
+	})
 
 	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
 	currencyHandler := handlers.NewCurrencyHandler(currencyStore)

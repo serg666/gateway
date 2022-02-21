@@ -41,7 +41,7 @@ func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
 
 	profile := &repository.Profile{Id: id}
 
-	err, notfound := ph.store.Delete(profile)
+	err, notfound := ph.store.Delete(c, profile)
 
 	if notfound {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -69,7 +69,7 @@ func (ph *profileHandler) GetProfileHandler(c *gin.Context) {
 		return
 	}
 
-	err, _, profiles := ph.store.Query(repository.NewProfileSpecificationByID(id))
+	err, _, profiles := ph.store.Query(c, repository.NewProfileSpecificationByID(id))
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -108,7 +108,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 	var currency *repository.Currency
 
 	if req.CurrencyCode != nil {
-		err, _, currencies := ph.currencyStore.Query(repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
+		err, _, currencies := ph.currencyStore.Query(c, repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -133,7 +133,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 		Currency:    currency,
 	}
 
-	err, notfound := ph.store.Update(profile)
+	err, notfound := ph.store.Update(c, profile)
 
 	if notfound {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -161,7 +161,7 @@ func (ph *profileHandler) CreateProfileHandler(c *gin.Context) {
 		return
 	}
 
-	err, _, currencies := ph.currencyStore.Query(repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
+	err, _, currencies := ph.currencyStore.Query(c, repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -182,7 +182,7 @@ func (ph *profileHandler) CreateProfileHandler(c *gin.Context) {
 		Description: req.Description,
 		Currency:    &currencies[0],
 	}
-	if err := ph.store.Add(profile); err != nil {
+	if err := ph.store.Add(c, profile); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -201,7 +201,7 @@ func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 		return
 	}
 
-	err, overall, profiles := ph.store.Query(repository.NewProfileSpecificationWithLimitAndOffset(
+	err, overall, profiles := ph.store.Query(c, repository.NewProfileSpecificationWithLimitAndOffset(
 		req.Limit,
 		req.Offset,
 	))

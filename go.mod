@@ -6,7 +6,7 @@ require (
 	github.com/gin-contrib/requestid v0.0.3
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.0
-	github.com/serg666/repository v0.0.0-20220221095943-2fe52857a6d8
+	github.com/serg666/repository v0.0.0-20220221143448-63ea78050d63
 	gopkg.in/yaml.v2 v2.4.0
 )
 
