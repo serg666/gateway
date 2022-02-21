@@ -6,8 +6,8 @@ require (
 	github.com/gin-contrib/requestid v0.0.3
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.0
-	github.com/serg666/repository v0.0.0-20220221143448-63ea78050d63
-	github.com/sirupsen/logrus v1.4.2
+	github.com/serg666/repository v0.0.0-20220221164305-542ae7599d34
+	github.com/sirupsen/logrus v1.8.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -27,7 +27,6 @@ require (
 	github.com/jackc/pgx/v4 v4.15.0 // indirect
 	github.com/jackc/puddle v1.2.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
