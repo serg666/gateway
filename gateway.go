@@ -1,18 +1,21 @@
 package main
 
-import "log"
+import (
+	"log"
+	"github.com/serg666/gateway/config"
+)
 
 func main() {
-	cfgPath, err := ParseFlags()
+	cfgPath, err := config.ParseFlags()
 	if err != nil {
 		log.Fatalf("can not parse flags due to: %v", err)
 	}
 
-	cfg, err := NewConfig(cfgPath)
+	cfg, err := config.NewConfig(cfgPath)
 	if err != nil {
 		log.Fatalf("can not get new config due to: %v", err)
 	}
 
 	// Run the server
-	cfg.RunServer()
+	cfg.RunServer(MakeHandler)
 }

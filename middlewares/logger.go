@@ -1,4 +1,4 @@
-package main
+package middlewares
 
 import (
 	"os"
@@ -7,10 +7,11 @@ import (
 	"math"
 	"net/http"
 
+	"github.com/serg666/gateway/config"
 	"github.com/gin-gonic/gin"
 )
 
-func LoggerMiddleware(cfg *Config, notLogged ...string) gin.HandlerFunc {
+func Logger(cfg *config.Config, notLogged ...string) gin.HandlerFunc {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "unknow"

@@ -7,11 +7,13 @@ import (
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/serg666/gateway/middlewares"
 	"github.com/serg666/gateway/handlers"
+	"github.com/serg666/gateway/config"
 	"github.com/serg666/repository"
 )
 
-func MakeHandler(cfg *Config) (*gin.Engine, error) {
+func MakeHandler(cfg *config.Config) (*gin.Engine, error) {
 	pgPool, err := repository.MakePgPoolFromDSN(cfg.Databases.Default.Dsn)
 	if err != nil {
 		return nil, fmt.Errorf("Can not make pg pool due to: %v", err)
@@ -27,8 +29,8 @@ func MakeHandler(cfg *Config) (*gin.Engine, error) {
 		return cfg.LogRusLogger(c.(*gin.Context))
 	})
 
-	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
-	currencyHandler := handlers.NewCurrencyHandler(currencyStore)
+	profileHandler := handlers.NewProfileHandler(cfg, profileStore, currencyStore)
+	currencyHandler := handlers.NewCurrencyHandler(cfg, currencyStore)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("notempty", func(fl validator.FieldLevel) bool {
@@ -42,7 +44,7 @@ func MakeHandler(cfg *Config) (*gin.Engine, error) {
 
 	handler.Use(
 		requestid.New(),
-		LoggerMiddleware(cfg),
+		middlewares.Logger(cfg),
 		gin.Recovery(),
 	)
 

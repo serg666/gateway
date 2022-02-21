@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"os"
@@ -14,6 +14,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/gin-contrib/requestid"
 )
+
+type HandlerFunc func(*Config) (*gin.Engine, error)
 
 // Config struct for webapp config
 type Config struct {
@@ -72,7 +74,7 @@ func (cfg *Config) LogRusLogger(c *gin.Context) logrus.FieldLogger {
 }
 
 // Run will run the HTTP Server
-func (cfg *Config) RunServer() {
+func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	// Set up a channel to listen to for interrupt signals
 	runChan := make(chan os.Signal, 1)
 
@@ -86,7 +88,7 @@ func (cfg *Config) RunServer() {
 
 	log := cfg.LogRusLogger(nil)
 
-	handler, err := MakeHandler(cfg)
+	handler, err := handlerFunc(cfg)
 	if err != nil {
 		log.Fatalf("Server failed to start due to err: %v", err)
 	}

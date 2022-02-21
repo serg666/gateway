@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/repository"
+	"github.com/serg666/gateway/config"
 )
 
 type CreateCurrencyRequest struct {
@@ -23,6 +24,7 @@ type UpdateCurrencyRequest struct {
 }
 
 type currencyHandler struct {
+	cfg   *config.Config
 	store repository.CurrencyRepository
 }
 
@@ -180,8 +182,9 @@ func (ch *currencyHandler) DeleteCurrencyHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, currency)
 }
 
-func NewCurrencyHandler(store repository.CurrencyRepository) *currencyHandler {
+func NewCurrencyHandler(cfg *config.Config, store repository.CurrencyRepository) *currencyHandler {
 	return &currencyHandler{
+		cfg:   cfg,
 		store: store,
 	}
 }
