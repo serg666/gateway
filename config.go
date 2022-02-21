@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"log"
 	"fmt"
 	"time"
 	"flag"
@@ -11,6 +10,9 @@ import (
 	"net/http"
 	"os/signal"
 	"gopkg.in/yaml.v2"
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	"github.com/gin-contrib/requestid"
 )
 
 // Config struct for webapp config
@@ -40,7 +42,7 @@ type Config struct {
 		} `yaml:"timeout"`
 	} `yaml:"server"`
 	LogRus struct {
-		Level string `yaml:"level"`
+		Level logrus.Level `yaml:"level"`
 	} `yaml:"logrus"`
 	Databases struct {
 		Default struct {
@@ -49,6 +51,25 @@ type Config struct {
 	} `yaml:"databases"`
 }
 
+func (cfg *Config) LogRusLogger(c *gin.Context) logrus.FieldLogger {
+	logger := logrus.New()
+	// @todo: somehow to configure logger from config
+	logger.SetLevel(cfg.LogRus.Level)
+	logger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		DisableLevelTruncation: true,
+		ForceColors: true,
+	})
+
+	var rid string
+	if c != nil {
+		rid = requestid.Get(c)
+	}
+
+	return logger.WithFields(logrus.Fields{
+		"request_id": rid,
+	})
+}
 
 // Run will run the HTTP Server
 func (cfg *Config) RunServer() {
@@ -62,6 +83,8 @@ func (cfg *Config) RunServer() {
 		cfg.Server.Timeout.Server * time.Second,
 	)
 	defer cancel()
+
+	log := cfg.LogRusLogger(nil)
 
 	handler, err := MakeHandler(cfg)
 	if err != nil {

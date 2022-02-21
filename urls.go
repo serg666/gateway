@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"github.com/sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/serg666/gateway/handlers"
-	"github.com/serg666/gateway/middlewares"
 	"github.com/serg666/repository"
 )
 
@@ -18,14 +17,14 @@ func MakeHandler(cfg *Config) (*gin.Engine, error) {
 		return nil, fmt.Errorf("Can not make pg pool due to: %v", err)
 	}
 
-	profileStore := repository.NewOrderedMapProfileStore(func (c interface{}) *log.Logger {
-		return log.Default()
+	profileStore := repository.NewOrderedMapProfileStore(func (c interface{}) logrus.FieldLogger {
+		return cfg.LogRusLogger(c.(*gin.Context))
 	})
-	//currencyStore := repository.NewOrderedMapCurrencyStore(func (c interface{}) *log.Logger {
-	//	return log.Default()
+	//currencyStore := repository.NewOrderedMapCurrencyStore(func (c interface{}) logrus.FieldLogger {
+	//	return cfg.LogRusLogger(c.(*gin.Context))
 	//})
-	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, func (c interface{}) *log.Logger {
-		return log.Default()
+	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, func (c interface{}) logrus.FieldLogger {
+		return cfg.LogRusLogger(c.(*gin.Context))
 	})
 
 	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
@@ -43,7 +42,7 @@ func MakeHandler(cfg *Config) (*gin.Engine, error) {
 
 	handler.Use(
 		requestid.New(),
-		middlewares.Logger(),
+		LoggerMiddleware(cfg),
 		gin.Recovery(),
 	)
 

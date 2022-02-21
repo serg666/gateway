@@ -1,18 +1,16 @@
-package middlewares
+package main
 
 import (
 	"os"
-	"log"
 	"fmt"
 	"time"
 	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	//"github.com/gin-contrib/requestid"
 )
 
-func Logger(notLogged ...string) gin.HandlerFunc {
+func LoggerMiddleware(cfg *Config, notLogged ...string) gin.HandlerFunc {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "unknow"
@@ -47,8 +45,10 @@ func Logger(notLogged ...string) gin.HandlerFunc {
 			return
 		}
 
+		log := cfg.LogRusLogger(c)
+
 		if len(c.Errors) > 0 {
-			log.Print(c.Errors.ByType(gin.ErrorTypePrivate).String())
+			log.Error(c.Errors.ByType(gin.ErrorTypePrivate).String())
 		} else {
 			msg := fmt.Sprintf("%s - %s \"%s %s\" %d %d \"%s\" \"%s\" (%dms)",
 				clientIP,
@@ -62,11 +62,11 @@ func Logger(notLogged ...string) gin.HandlerFunc {
 				latency,
 			)
 			if statusCode >= http.StatusInternalServerError {
-				log.Print(msg)
+				log.Error(msg)
 			} else if statusCode >= http.StatusBadRequest {
-				log.Print(msg)
+				log.Warn(msg)
 			} else {
-				log.Print(msg)
+				log.Info(msg)
 			}
 		}
 	}
