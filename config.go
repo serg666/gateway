@@ -20,7 +20,7 @@ type Config struct {
 		Host string `yaml:"host"`
 
 		// Port is the local machine TCP Port to bind the HTTP Server to
-		Port	string `yaml:"port"`
+		Port string `yaml:"port"`
 		Timeout	struct {
 			// Server is the general server timeout to use
 			// for graceful shutdowns
@@ -39,6 +39,9 @@ type Config struct {
 			Idle time.Duration `yaml:"idle"`
 		} `yaml:"timeout"`
 	} `yaml:"server"`
+	LogRus struct {
+		Level string `yaml:"level"`
+	} `yaml:"logrus"`
 	Databases struct {
 		Default struct {
 			Dsn string `yaml:"dsn"`
@@ -79,7 +82,7 @@ func (cfg *Config) RunServer() {
 	signal.Notify(runChan, os.Interrupt, os.Kill, syscall.SIGTSTP, syscall.SIGSTOP)
 
 	// Alert the user that the server is starting
-	log.Printf("Server is starting on %s\n", server.Addr)
+	log.Printf("Server is starting on %s", server.Addr)
 
 	// Run the server on a new goroutine
 	go func() {
@@ -98,7 +101,7 @@ func (cfg *Config) RunServer() {
 
 	// If we get one of the pre-prescribed syscalls, gracefully terminate the server
 	// while alerting the user
-	log.Printf("Server is shutting down due to %+v\n", interrupt)
+	log.Printf("Server is shutting down due to %+v", interrupt)
 	// @todo: check shutdown here. it does not work after some time while runing server
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatalf("Server was unable to gracefully shutdown due to err: %+v", err)
@@ -122,7 +125,7 @@ func NewConfig(configPath *string) (*Config, error) {
 
 	// Start YAML decoding from file
 	if err := d.Decode(&config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("can not decode yaml config: %v", err)
 	}
 
 	return config, nil

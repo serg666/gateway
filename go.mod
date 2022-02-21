@@ -3,9 +3,10 @@ module github.com/serg666/gateway
 go 1.17
 
 require (
+	github.com/gin-contrib/requestid v0.0.3
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.0
-	github.com/serg666/repository v0.0.0-20220217182035-61c9c3dec864
+	github.com/serg666/repository v0.0.0-20220221095943-2fe52857a6d8
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -14,6 +15,7 @@ require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.11.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect

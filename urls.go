@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/serg666/gateway/handlers"
+	"github.com/serg666/gateway/middlewares"
 	"github.com/serg666/repository"
 )
 
@@ -15,6 +17,13 @@ func MakeHandler(cfg *Config) (*gin.Engine, error) {
 		return nil, fmt.Errorf("Can not make pg pool due to: %v", err)
 	}
 
+	profileStore := repository.NewOrderedMapProfileStore()
+	//currencyStore := repository.NewOrderedMapCurrencyStore()
+	currencyStore := repository.NewPGPoolCurrencyStore(pgPool)
+
+	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
+	currencyHandler := handlers.NewCurrencyHandler(currencyStore)
+
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("notempty", func(fl validator.FieldLevel) bool {
 			return fl.Field().Len() != 0
@@ -22,23 +31,20 @@ func MakeHandler(cfg *Config) (*gin.Engine, error) {
 	}
 
 	gin.EnableJsonDecoderDisallowUnknownFields()
-	handler := gin.Default()
 
-	profileStore := repository.NewOrderedMapProfileStore()
-	//currencyStore := repository.NewOrderedMapCurrencyStore()
-	currencyStore := repository.NewPGPoolCurrencyStore(pgPool)
+	handler := gin.New()
 
-	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
+	handler.Use(
+		requestid.New(),
+		middlewares.Logger(),
+		gin.Recovery(),
+	)
 
 	handler.POST("/profiles", profileHandler.CreateProfileHandler)
 	handler.GET("/profiles", profileHandler.GetProfilesHandler)
 	handler.DELETE("/profiles/:id", profileHandler.DeleteProfileHandler)
 	handler.GET("/profiles/:id", profileHandler.GetProfileHandler)
 	handler.PATCH("/profiles/:id", profileHandler.PatchProfileHandler)
-
-
-
-	currencyHandler := handlers.NewCurrencyHandler(currencyStore)
 
 	handler.POST("/currencies", currencyHandler.CreateCurrencyHandler)
 	handler.GET("/currencies", currencyHandler.GetCurrenciesHandler)
