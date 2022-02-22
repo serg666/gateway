@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/wk8/go-ordered-map"
 	"github.com/sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/requestid"
@@ -14,20 +15,18 @@ import (
 )
 
 func MakeHandler(cfg *config.Config) (*gin.Engine, error) {
+	loggerFunc := func (c interface{}) logrus.FieldLogger {
+		return cfg.LogRusLogger(c.(*gin.Context))
+	}
+
 	pgPool, err := repository.MakePgPoolFromDSN(cfg.Databases.Default.Dsn)
 	if err != nil {
 		return nil, fmt.Errorf("Can not make pg pool due to: %v", err)
 	}
 
-	profileStore := repository.NewOrderedMapProfileStore(func (c interface{}) logrus.FieldLogger {
-		return cfg.LogRusLogger(c.(*gin.Context))
-	})
-	//currencyStore := repository.NewOrderedMapCurrencyStore(func (c interface{}) logrus.FieldLogger {
-	//	return cfg.LogRusLogger(c.(*gin.Context))
-	//})
-	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, func (c interface{}) logrus.FieldLogger {
-		return cfg.LogRusLogger(c.(*gin.Context))
-	})
+	profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), loggerFunc)
+	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
+	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
 
 	profileHandler := handlers.NewProfileHandler(cfg, profileStore, currencyStore)
 	currencyHandler := handlers.NewCurrencyHandler(cfg, currencyStore)
