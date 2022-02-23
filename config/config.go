@@ -10,12 +10,22 @@ import (
 	"net/http"
 	"os/signal"
 	"gopkg.in/yaml.v2"
+	"github.com/wk8/go-ordered-map"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/gin-contrib/requestid"
+	"github.com/serg666/repository"
+
+	"github.com/serg666/gateway/plugins"
+	"github.com/serg666/gateway/plugins/channels/kvellbank"
+	"github.com/serg666/gateway/plugins/channels/alfabank"
 )
 
-type HandlerFunc func(*Config) (*gin.Engine, error)
+type HandlerFunc func(
+	repository.ProfileRepository,
+	repository.CurrencyRepository,
+	repository.LoggerFunc,
+) *gin.Engine
 
 // Config struct for webapp config
 type Config struct {
@@ -53,7 +63,7 @@ type Config struct {
 	} `yaml:"databases"`
 }
 
-func (cfg *Config) LogRusLogger(c *gin.Context) logrus.FieldLogger {
+func (cfg *Config) LogRusLogger(c interface{}) logrus.FieldLogger {
 	logger := logrus.New()
 	// @todo: somehow to configure logger from config
 	logger.SetLevel(cfg.LogRus.Level)
@@ -65,7 +75,7 @@ func (cfg *Config) LogRusLogger(c *gin.Context) logrus.FieldLogger {
 
 	var rid string
 	if c != nil {
-		rid = requestid.Get(c)
+		rid = requestid.Get(c.(*gin.Context))
 	}
 
 	return logger.WithFields(logrus.Fields{
@@ -75,6 +85,37 @@ func (cfg *Config) LogRusLogger(c *gin.Context) logrus.FieldLogger {
 
 // Run will run the HTTP Server
 func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
+	loggerFunc := func (c interface{}) logrus.FieldLogger {
+		return cfg.LogRusLogger(c)
+	}
+	log := loggerFunc(nil)
+
+	pgPool, err := repository.MakePgPoolFromDSN(cfg.Databases.Default.Dsn)
+	if err != nil {
+		log.Fatalf("Can not make pg pool: %v", err)
+	}
+
+	profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), loggerFunc)
+	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
+	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
+	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
+
+	if kvellbank.Registered != nil {
+		log.Fatalf("Can not register kvellbank channel: %v", kvellbank.Registered)
+	}
+
+	if alfabank.Registered != nil {
+		log.Fatalf("Can not register alfabank channel: %v", alfabank.Registered)
+	}
+
+	if err := plugins.RegisterBankChannels(channelStore); err != nil {
+		log.Fatalf("Failed to register bank channels: %v", err)
+	}
+
+	if err := plugins.CheckBankChannels(channelStore); err != nil {
+		log.Fatalf("Failed to check bank channels: %v", err)
+	}
+
 	// Set up a channel to listen to for interrupt signals
 	runChan := make(chan os.Signal, 1)
 
@@ -86,17 +127,10 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	)
 	defer cancel()
 
-	log := cfg.LogRusLogger(nil)
-
-	handler, err := handlerFunc(cfg)
-	if err != nil {
-		log.Fatalf("Server failed to start due to err: %v", err)
-	}
-
 	// Define server options
 	server := &http.Server{
 		Addr:           cfg.Server.Host + ":" + cfg.Server.Port,
-		Handler:        handler,
+		Handler:        handlerFunc(profileStore, currencyStore, loggerFunc),
 		ReadTimeout:    cfg.Server.Timeout.Read * time.Second,
 		WriteTimeout:   cfg.Server.Timeout.Write * time.Second,
 		IdleTimeout:    cfg.Server.Timeout.Idle * time.Second,

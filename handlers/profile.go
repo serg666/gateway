@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/repository"
-	"github.com/serg666/gateway/config"
 )
 
 type LimitAndOffsetRequest struct {
@@ -27,7 +26,6 @@ type UpdateProfileRequest struct {
 }
 
 type profileHandler struct {
-	cfg           *config.Config
 	store         repository.ProfileRepository
 	currencyStore repository.CurrencyRepository
 }
@@ -221,9 +219,8 @@ func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 	})
 }
 
-func NewProfileHandler(cfg *config.Config, store repository.ProfileRepository, currencyStore repository.CurrencyRepository) *profileHandler {
+func NewProfileHandler(store repository.ProfileRepository, currencyStore repository.CurrencyRepository) *profileHandler {
 	return &profileHandler{
-		cfg:           cfg,
 		store:         store,
 		currencyStore: currencyStore,
 	}

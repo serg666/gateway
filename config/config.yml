@@ -10,4 +10,4 @@ logrus:
   level: debug
 databases:
   default:
-    dsn: dbname=admin user=admin password=qazwsx host=127.0.0.1 pool_max_conns=10
+    dsn: dbname=kvell user=kvell password=qazwsx host=127.0.0.1 pool_max_conns=10

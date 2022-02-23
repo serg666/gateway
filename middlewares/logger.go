@@ -7,11 +7,11 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/serg666/gateway/config"
+	"github.com/serg666/repository"
 	"github.com/gin-gonic/gin"
 )
 
-func Logger(cfg *config.Config, notLogged ...string) gin.HandlerFunc {
+func Logger(loggerFunc repository.LoggerFunc, notLogged ...string) gin.HandlerFunc {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "unknow"
@@ -46,7 +46,7 @@ func Logger(cfg *config.Config, notLogged ...string) gin.HandlerFunc {
 			return
 		}
 
-		log := cfg.LogRusLogger(c)
+		log := loggerFunc(c)
 
 		if len(c.Errors) > 0 {
 			log.Error(c.Errors.ByType(gin.ErrorTypePrivate).String())

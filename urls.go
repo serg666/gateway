@@ -1,35 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"github.com/wk8/go-ordered-map"
-	"github.com/sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/serg666/gateway/middlewares"
 	"github.com/serg666/gateway/handlers"
-	"github.com/serg666/gateway/config"
 	"github.com/serg666/repository"
 )
 
-func MakeHandler(cfg *config.Config) (*gin.Engine, error) {
-	loggerFunc := func (c interface{}) logrus.FieldLogger {
-		return cfg.LogRusLogger(c.(*gin.Context))
-	}
-
-	pgPool, err := repository.MakePgPoolFromDSN(cfg.Databases.Default.Dsn)
-	if err != nil {
-		return nil, fmt.Errorf("Can not make pg pool due to: %v", err)
-	}
-
-	profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), loggerFunc)
-	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
-	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
-
-	profileHandler := handlers.NewProfileHandler(cfg, profileStore, currencyStore)
-	currencyHandler := handlers.NewCurrencyHandler(cfg, currencyStore)
+func MakeHandler(
+	profileStore repository.ProfileRepository,
+	currencyStore repository.CurrencyRepository,
+	loggerFunc repository.LoggerFunc,
+) *gin.Engine {
+	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
+	currencyHandler := handlers.NewCurrencyHandler(currencyStore)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("notempty", func(fl validator.FieldLevel) bool {
@@ -43,7 +30,7 @@ func MakeHandler(cfg *config.Config) (*gin.Engine, error) {
 
 	handler.Use(
 		requestid.New(),
-		middlewares.Logger(cfg),
+		middlewares.Logger(loggerFunc),
 		gin.Recovery(),
 	)
 
@@ -59,5 +46,5 @@ func MakeHandler(cfg *config.Config) (*gin.Engine, error) {
 	handler.GET("/currencies/:id", currencyHandler.GetCurrencyHandler)
 	handler.PATCH("/currencies/:id", currencyHandler.PatchCurrencyHandler)
 
-	return handler, nil
+	return handler
 }
