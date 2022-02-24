@@ -123,7 +123,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 			})
 			return
 		}
-		currency = &currencies[0]
+		currency = currencies[0]
 	}
 
 	profile := &repository.Profile{
@@ -180,7 +180,7 @@ func (ph *profileHandler) CreateProfileHandler(c *gin.Context) {
 	profile := &repository.Profile{
 		Key:         req.Key,
 		Description: req.Description,
-		Currency:    &currencies[0],
+		Currency:    currencies[0],
 	}
 	if err := ph.store.Add(c, profile); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
