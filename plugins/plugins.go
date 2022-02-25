@@ -7,7 +7,7 @@ import (
 	"github.com/serg666/repository"
 )
 
-type BankChannelFunc func (int) channels.BankChannel
+type BankChannelFunc func (*repository.Account, repository.LoggerFunc) channels.BankChannel
 
 type BankChannel struct {
 	Key    string
@@ -20,6 +20,16 @@ func (bc BankChannel) String() string {
 }
 
 var BankChannels = make(map[int]*BankChannel)
+
+func BankApi(channel *repository.Channel, account *repository.Account, logger repository.LoggerFunc) (error, channels.BankChannel) {
+	aid := *account.Channel.Id
+	cid := *channel.Id
+	if aid != cid {
+		return fmt.Errorf("account channel id %d != channel id %d", aid, cid), nil
+	}
+
+	return nil, BankChannels[cid].Plugin(account, logger)
+}
 
 func RegisterBankChannel(id int, key string, channelFunc BankChannelFunc) error {
 	if val, ok := BankChannels[id]; ok {

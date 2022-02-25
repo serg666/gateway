@@ -20,6 +20,13 @@ func MakeHandler(
 	accountHandler := handlers.NewAccountHandler(accountStore, currencyStore, channelStore, loggerFunc)
 	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore, loggerFunc)
 	currencyHandler := handlers.NewCurrencyHandler(currencyStore, loggerFunc)
+	transactionHandler := handlers.NewTransactionHandler(
+		profileStore,
+		accountStore,
+		channelStore,
+		currencyStore,
+		loggerFunc,
+	)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("notempty", func(fl validator.FieldLevel) bool {
@@ -37,6 +44,10 @@ func MakeHandler(
 		gin.Recovery(),
 	)
 
+	// @note: payment interface
+	handler.POST("/profiles/:id/transactions/authorize/card", transactionHandler.CardAuthorizeHandler)
+
+	// @note: admin interface (should be moved to another web service)
 	handler.POST("/accounts", accountHandler.CreateAccountHandler)
 	handler.GET("/accounts", accountHandler.GetAccountsHandler)
 	handler.GET("/accounts/:id", accountHandler.GetAccountHandler)
