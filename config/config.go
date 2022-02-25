@@ -22,6 +22,8 @@ import (
 )
 
 type HandlerFunc func(
+	repository.AccountRepository,
+	repository.ChannelRepository,
 	repository.ProfileRepository,
 	repository.CurrencyRepository,
 	repository.LoggerFunc,
@@ -99,6 +101,7 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
 	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
+	accountStore := repository.NewPGPoolAccountStore(pgPool, loggerFunc)
 
 	if kvellbank.Registered != nil {
 		log.Fatalf("Can not register kvellbank channel: %v", kvellbank.Registered)
@@ -130,7 +133,13 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	// Define server options
 	server := &http.Server{
 		Addr:           cfg.Server.Host + ":" + cfg.Server.Port,
-		Handler:        handlerFunc(profileStore, currencyStore, loggerFunc),
+		Handler:        handlerFunc(
+			accountStore,
+			channelStore,
+			profileStore,
+			currencyStore,
+			loggerFunc,
+		),
 		ReadTimeout:    cfg.Server.Timeout.Read * time.Second,
 		WriteTimeout:   cfg.Server.Timeout.Write * time.Second,
 		IdleTimeout:    cfg.Server.Timeout.Idle * time.Second,

@@ -49,7 +49,7 @@ func RegisterBankChannels(channelStore repository.ChannelRepository) error {
 			}
 		} else {
 			channel := &repository.Channel{
-				Id:     Id,
+				Id:     &Id,
 				TypeId: &BankChannel.Type,
 				Key:    &BankChannel.Key,
 			}
@@ -74,7 +74,7 @@ func CheckBankChannels(channelStore repository.ChannelRepository) error {
 	}
 
 	for _, bankChannel := range bankChannels {
-		if val, ok := BankChannels[bankChannel.Id]; ok {
+		if val, ok := BankChannels[*bankChannel.Id]; ok {
 			if val.Key != *bankChannel.Key {
 				return fmt.Errorf("%s (id=%d) registered with key=%s", val, bankChannel.Id, *bankChannel.Key)
 			}

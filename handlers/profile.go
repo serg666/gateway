@@ -26,6 +26,7 @@ type UpdateProfileRequest struct {
 }
 
 type profileHandler struct {
+	loggerFunc    repository.LoggerFunc
 	store         repository.ProfileRepository
 	currencyStore repository.CurrencyRepository
 }
@@ -39,7 +40,7 @@ func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
 		return
 	}
 
-	profile := &repository.Profile{Id: id}
+	profile := &repository.Profile{Id: &id}
 
 	err, notfound := ph.store.Delete(c, profile)
 
@@ -55,6 +56,15 @@ func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
 			"message": err.Error(),
 		})
 		return
+	}
+
+	if profile.Currency != nil {
+		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, profile)
@@ -85,6 +95,15 @@ func (ph *profileHandler) GetProfileHandler(c *gin.Context) {
 		return
 	}
 
+	for _, profile := range profiles {
+		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, profiles[0])
 }
 
@@ -105,7 +124,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 		return
 	}
 
-	var currency *repository.Currency
+	currency := &repository.Currency{}
 
 	if req.CurrencyCode != nil {
 		err, _, currencies := ph.currencyStore.Query(c, repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
@@ -127,7 +146,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 	}
 
 	profile := &repository.Profile{
-		Id:          id,
+		Id:          &id,
 		Key:         req.Key,
 		Description: req.Description,
 		Currency:    currency,
@@ -147,6 +166,16 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 			"message": err.Error(),
 		})
 		return
+	}
+
+	// @note: refresh profile currency
+	if profile.Currency.Id != nil && req.CurrencyCode == nil {
+		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, profile)
@@ -192,6 +221,22 @@ func (ph *profileHandler) CreateProfileHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, profile)
 }
 
+func (ph *profileHandler) refreshProfileCurrency(c *gin.Context, profile *repository.Profile) error {
+	err, _, currencies := ph.currencyStore.Query(c, repository.NewCurrencySpecificationByID(
+		*profile.Currency.Id,
+	))
+
+	if err != nil {
+		return fmt.Errorf("Can not update proile currency: %v", err)
+	}
+
+	for _, currency := range currencies {
+		profile.Currency = currency
+	}
+
+	return nil
+}
+
 func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 	var req LimitAndOffsetRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -213,14 +258,28 @@ func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 		return
 	}
 
+	for _, profile := range profiles {
+		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"overall": overall,
 		"profiles": profiles,
 	})
 }
 
-func NewProfileHandler(store repository.ProfileRepository, currencyStore repository.CurrencyRepository) *profileHandler {
+func NewProfileHandler(
+	store repository.ProfileRepository,
+	currencyStore repository.CurrencyRepository,
+	loggerFunc repository.LoggerFunc,
+) *profileHandler {
 	return &profileHandler{
+		loggerFunc:    loggerFunc,
 		store:         store,
 		currencyStore: currencyStore,
 	}

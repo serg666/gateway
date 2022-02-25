@@ -11,12 +11,15 @@ import (
 )
 
 func MakeHandler(
+	accountStore repository.AccountRepository,
+	channelStore repository.ChannelRepository,
 	profileStore repository.ProfileRepository,
 	currencyStore repository.CurrencyRepository,
 	loggerFunc repository.LoggerFunc,
 ) *gin.Engine {
-	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore)
-	currencyHandler := handlers.NewCurrencyHandler(currencyStore)
+	accountHandler := handlers.NewAccountHandler(accountStore, currencyStore, channelStore, loggerFunc)
+	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore, loggerFunc)
+	currencyHandler := handlers.NewCurrencyHandler(currencyStore, loggerFunc)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("notempty", func(fl validator.FieldLevel) bool {
@@ -33,6 +36,12 @@ func MakeHandler(
 		middlewares.Logger(loggerFunc),
 		gin.Recovery(),
 	)
+
+	handler.POST("/accounts", accountHandler.CreateAccountHandler)
+	handler.GET("/accounts", accountHandler.GetAccountsHandler)
+	handler.GET("/accounts/:id", accountHandler.GetAccountHandler)
+	handler.DELETE("/accounts/:id", accountHandler.DeleteAccountHandler)
+	handler.PATCH("/accounts/:id", accountHandler.PatchAccountHandler)
 
 	handler.POST("/profiles", profileHandler.CreateProfileHandler)
 	handler.GET("/profiles", profileHandler.GetProfilesHandler)

@@ -23,7 +23,8 @@ type UpdateCurrencyRequest struct {
 }
 
 type currencyHandler struct {
-	store repository.CurrencyRepository
+	loggerFunc repository.LoggerFunc
+	store      repository.CurrencyRepository
 }
 
 func (ch *currencyHandler) CreateCurrencyHandler(c *gin.Context) {
@@ -124,7 +125,7 @@ func (ch *currencyHandler) PatchCurrencyHandler(c *gin.Context) {
 	}
 
 	currency := &repository.Currency{
-		Id:          id,
+		Id:          &id,
 		NumericCode: req.NumericCode,
 		Name:        req.Name,
 		CharCode:    req.CharCode,
@@ -159,7 +160,7 @@ func (ch *currencyHandler) DeleteCurrencyHandler(c *gin.Context) {
 		return
 	}
 
-	currency := &repository.Currency{Id: id}
+	currency := &repository.Currency{Id: &id}
 
 	err, notfound := ch.store.Delete(c, currency)
 
@@ -180,8 +181,12 @@ func (ch *currencyHandler) DeleteCurrencyHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, currency)
 }
 
-func NewCurrencyHandler(store repository.CurrencyRepository) *currencyHandler {
+func NewCurrencyHandler(
+	store repository.CurrencyRepository,
+	loggerFunc repository.LoggerFunc,
+) *currencyHandler {
 	return &currencyHandler{
-		store: store,
+		loggerFunc: loggerFunc,
+		store:      store,
 	}
 }
