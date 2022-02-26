@@ -11,6 +11,7 @@ import (
 )
 
 func MakeHandler(
+	instrumentStore repository.InstrumentRepository,
 	accountStore repository.AccountRepository,
 	channelStore repository.ChannelRepository,
 	profileStore repository.ProfileRepository,
@@ -21,6 +22,7 @@ func MakeHandler(
 	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore, loggerFunc)
 	currencyHandler := handlers.NewCurrencyHandler(currencyStore, loggerFunc)
 	transactionHandler := handlers.NewTransactionHandler(
+		instrumentStore,
 		profileStore,
 		accountStore,
 		channelStore,
@@ -45,7 +47,7 @@ func MakeHandler(
 	)
 
 	// @note: payment interface
-	handler.POST("/profiles/:id/transactions/authorize/card", transactionHandler.CardAuthorizeHandler)
+	handler.POST("/profiles/:id/transactions/authorize/:instrument", transactionHandler.AuthorizeHandler)
 
 	// @note: admin interface (should be moved to another web service)
 	handler.POST("/accounts", accountHandler.CreateAccountHandler)

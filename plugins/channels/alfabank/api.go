@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/channels"
+	"github.com/serg666/gateway/plugins/instruments"
 	"github.com/serg666/repository"
 )
 
@@ -26,7 +27,8 @@ type AlfaBankChannel struct {
 	account *repository.Account
 }
 
-func (abc *AlfaBankChannel) Authorize(c *gin.Context) {
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, instrument instruments.PaymentInstrument) {
+	instrument.FromContext(c)
 	abc.logger(c).Print("authorize")
 }
 

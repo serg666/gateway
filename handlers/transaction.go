@@ -10,14 +10,15 @@ import (
 )
 
 type transactionHandler struct {
-	loggerFunc    repository.LoggerFunc
-	profileStore  repository.ProfileRepository
-	accountStore  repository.AccountRepository
-	currencyStore repository.CurrencyRepository
-	channelStore  repository.ChannelRepository
+	loggerFunc      repository.LoggerFunc
+	profileStore    repository.ProfileRepository
+	accountStore    repository.AccountRepository
+	currencyStore   repository.CurrencyRepository
+	channelStore    repository.ChannelRepository
+	instrumentStore repository.InstrumentRepository
 }
 
-func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
+func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
 	id, err := strconv.Atoi(c.Params.ByName("id"))
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -42,6 +43,25 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
+	instrumentKey := c.Params.ByName("instrument")
+	err, _, instruments := th.instrumentStore.Query(c, repository.NewInstrumentSpecificationByKey(
+		instrumentKey,
+	))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if len(instruments) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprintf("Instrument with key=%s not found", instrumentKey),
+		})
+		return
+	}
+
 	// @todo: somehow find channel and account within the channel to make authorize request to bank api (routing) 
 	err, overall, channels := th.channelStore.Query(nil, repository.NewChannelSpecificationByID(2))
 	th.loggerFunc(c).Printf("err: %v, overall: %v, channels: %v", err, overall, channels[0])
@@ -53,13 +73,16 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	th.loggerFunc(c).Printf("err: %v", err)
 	if err == nil {
 		th.loggerFunc(c).Printf("bank api: %v %T", bankApi, bankApi)
-		bankApi.Authorize(c)
+		err, instrumentApi := plugins.InstrumentApi(instruments[0], th.loggerFunc)
+		th.loggerFunc(c).Printf("err, instrument: %v, %v (%T)", err, instrumentApi, instrumentApi)
+		bankApi.Authorize(c, instrumentApi)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message":"ok"})
 }
 
 func NewTransactionHandler(
+	instrumentStore repository.InstrumentRepository,
 	profileStore repository.ProfileRepository,
 	accountStore repository.AccountRepository,
 	channelStore repository.ChannelRepository,
@@ -67,10 +90,11 @@ func NewTransactionHandler(
 	loggerFunc repository.LoggerFunc,
 ) *transactionHandler {
 	return &transactionHandler{
-		loggerFunc:    loggerFunc,
-		profileStore:  profileStore,
-		accountStore:  accountStore,
-		currencyStore: currencyStore,
-		channelStore:  channelStore,
+		loggerFunc:      loggerFunc,
+		profileStore:    profileStore,
+		accountStore:    accountStore,
+		currencyStore:   currencyStore,
+		channelStore:    channelStore,
+		instrumentStore: instrumentStore,
 	}
 }

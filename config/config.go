@@ -17,11 +17,15 @@ import (
 	"github.com/serg666/repository"
 
 	"github.com/serg666/gateway/plugins"
+
+	"github.com/serg666/gateway/plugins/instruments/card"
+
 	"github.com/serg666/gateway/plugins/channels/kvellbank"
 	"github.com/serg666/gateway/plugins/channels/alfabank"
 )
 
 type HandlerFunc func(
+	repository.InstrumentRepository,
 	repository.AccountRepository,
 	repository.ChannelRepository,
 	repository.ProfileRepository,
@@ -102,6 +106,11 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
 	accountStore := repository.NewPGPoolAccountStore(pgPool, loggerFunc)
+	instrumentStore := repository.NewPGPoolInstrumentStore(pgPool, loggerFunc)
+
+	if bankcard.Registered != nil {
+		log.Fatalf("Can not register bank card instrument type: %v", bankcard.Registered)
+	}
 
 	if kvellbank.Registered != nil {
 		log.Fatalf("Can not register kvellbank channel: %v", kvellbank.Registered)
@@ -119,6 +128,14 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 		log.Fatalf("Failed to check bank channels: %v", err)
 	}
 
+	if err := plugins.RegisterPaymentInstruments(instrumentStore); err != nil {
+		log.Fatalf("Failed to register payment instruments: %v", err)
+	}
+
+	if err := plugins.CheckPaymentInstruments(instrumentStore); err != nil {
+		log.Fatalf("Failed to check payment instruments: %v", err)
+	}
+
 	// Set up a channel to listen to for interrupt signals
 	runChan := make(chan os.Signal, 1)
 
@@ -134,6 +151,7 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	server := &http.Server{
 		Addr:           cfg.Server.Host + ":" + cfg.Server.Port,
 		Handler:        handlerFunc(
+			instrumentStore,
 			accountStore,
 			channelStore,
 			profileStore,

@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/channels"
+	"github.com/serg666/gateway/plugins/instruments"
 	"github.com/serg666/repository"
 )
 
@@ -26,7 +27,7 @@ type KvellBankChannel struct {
 	account *repository.Account
 }
 
-func (kbc *KvellBankChannel) Authorize(c *gin.Context) {
+func (kbc *KvellBankChannel) Authorize(c *gin.Context, instrument instruments.PaymentInstrument) {
 	kbc.logger(c).Print("authorize int")
 }
 
