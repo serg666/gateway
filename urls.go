@@ -11,6 +11,8 @@ import (
 )
 
 func MakeHandler(
+	routeStore repository.RouteRepository,
+	routerStore repository.RouterRepository,
 	instrumentStore repository.InstrumentRepository,
 	accountStore repository.AccountRepository,
 	channelStore repository.ChannelRepository,
@@ -18,10 +20,20 @@ func MakeHandler(
 	currencyStore repository.CurrencyRepository,
 	loggerFunc repository.LoggerFunc,
 ) *gin.Engine {
+	routeHandler := handlers.NewRouteHandler(
+		routeStore,
+		profileStore,
+		instrumentStore,
+		accountStore,
+		routerStore,
+		loggerFunc,
+	)
 	accountHandler := handlers.NewAccountHandler(accountStore, currencyStore, channelStore, loggerFunc)
 	profileHandler := handlers.NewProfileHandler(profileStore, currencyStore, loggerFunc)
 	currencyHandler := handlers.NewCurrencyHandler(currencyStore, loggerFunc)
 	transactionHandler := handlers.NewTransactionHandler(
+		routeStore,
+		routerStore,
 		instrumentStore,
 		profileStore,
 		accountStore,
@@ -50,6 +62,8 @@ func MakeHandler(
 	handler.POST("/profiles/:id/transactions/authorize/:instrument", transactionHandler.AuthorizeHandler)
 
 	// @note: admin interface (should be moved to another web service)
+	handler.POST("/routes", routeHandler.CreateRouteHandler)
+
 	handler.POST("/accounts", accountHandler.CreateAccountHandler)
 	handler.GET("/accounts", accountHandler.GetAccountsHandler)
 	handler.GET("/accounts/:id", accountHandler.GetAccountHandler)

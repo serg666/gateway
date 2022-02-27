@@ -27,6 +27,8 @@ import (
 )
 
 type HandlerFunc func(
+	repository.RouteRepository,
+	repository.RouterRepository,
 	repository.InstrumentRepository,
 	repository.AccountRepository,
 	repository.ChannelRepository,
@@ -110,6 +112,7 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	accountStore := repository.NewPGPoolAccountStore(pgPool, loggerFunc)
 	instrumentStore := repository.NewPGPoolInstrumentStore(pgPool, loggerFunc)
 	routerStore := repository.NewPGPoolRouterStore(pgPool, loggerFunc)
+	routeStore := repository.NewPGPoolRouteStore(pgPool, loggerFunc)
 
 	if visamaster.Registered != nil {
 		log.Fatalf("Can not register visamaster router: %v", visamaster.Registered)
@@ -166,6 +169,8 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	server := &http.Server{
 		Addr:           cfg.Server.Host + ":" + cfg.Server.Port,
 		Handler:        handlerFunc(
+			routeStore,
+			routerStore,
 			instrumentStore,
 			accountStore,
 			channelStore,

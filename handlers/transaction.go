@@ -16,6 +16,8 @@ type transactionHandler struct {
 	currencyStore   repository.CurrencyRepository
 	channelStore    repository.ChannelRepository
 	instrumentStore repository.InstrumentRepository
+	routeStore      repository.RouteRepository
+	routerStore     repository.RouterRepository
 }
 
 func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
@@ -70,7 +72,7 @@ func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	// @todo: somehow find channel and account within the channel to make authorize request to bank api (routing) 
+	// @todo: somehow find channel and account within the channel to make authorize request to bank api (routing)
 	err, overall, channels := th.channelStore.Query(nil, repository.NewChannelSpecificationByID(2))
 	th.loggerFunc(c).Printf("err: %v, overall: %v, channels: %v", err, overall, channels[0])
 
@@ -89,6 +91,8 @@ func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
 }
 
 func NewTransactionHandler(
+	routeStore repository.RouteRepository,
+	routerStore repository.RouterRepository,
 	instrumentStore repository.InstrumentRepository,
 	profileStore repository.ProfileRepository,
 	accountStore repository.AccountRepository,
@@ -103,5 +107,7 @@ func NewTransactionHandler(
 		currencyStore:   currencyStore,
 		channelStore:    channelStore,
 		instrumentStore: instrumentStore,
+		routeStore:      routeStore,
+		routerStore:     routerStore,
 	}
 }
