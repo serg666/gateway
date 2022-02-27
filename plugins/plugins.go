@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"fmt"
+	"github.com/serg666/gateway/plugins/routers"
 	"github.com/serg666/gateway/plugins/channels"
 	"github.com/serg666/gateway/plugins/instruments"
 
@@ -9,9 +10,90 @@ import (
 )
 
 var (
+	Routers            = make(map[int]*Router)
 	BankChannels       = make(map[int]*BankChannel)
 	PaymentInstruments = make(map[int]*PaymentInstrument)
 )
+
+type RouterFunc func (*repository.RouterSettings, repository.LoggerFunc) routers.Router
+
+type Router struct {
+	Key    string
+	Plugin RouterFunc
+}
+
+func (r Router) String() string {
+	return fmt.Sprintf("router <%s>", r.Key)
+}
+
+func RouterApi(router *repository.Router, settings *repository.RouterSettings, logger repository.LoggerFunc) (error, routers.Router) {
+	if val, ok := Routers[*router.Id]; ok {
+		return nil, val.Plugin(settings, logger)
+	}
+
+	return fmt.Errorf("Router with ID=%v not found", *router.Id), nil
+}
+
+func RegisterRouter(id int, key string, routerFunc RouterFunc) error {
+	if val, ok := Routers[id]; ok {
+		return fmt.Errorf("ID <%d> has already used for: %s", id, val)
+	}
+
+	Routers[id] = &Router{
+		Key:    key,
+		Plugin: routerFunc,
+	}
+
+	return nil
+}
+
+func RegisterRouters(routerStore repository.RouterRepository) error {
+	for Id, Router := range Routers {
+		err, _, routers := routerStore.Query(nil, repository.NewRouterSpecificationByID(Id))
+		if err != nil {
+			return fmt.Errorf("Failed to query routers: %v", err)
+		}
+
+		if len(routers) > 0 {
+			router := routers[0]
+			if Router.Key != *router.Key {
+				return fmt.Errorf("Router %s already uses id=%d", *router.Key, Id)
+			}
+		} else {
+			router := &repository.Router{
+				Id:  &Id,
+				Key: &Router.Key,
+			}
+			if err := routerStore.Add(nil, router); err != nil {
+				return fmt.Errorf("Failed to add router: %v", err)
+			}
+		}
+	}
+	return nil
+}
+
+func CheckRouters(routerStore repository.RouterRepository) error {
+	err, _, routers := routerStore.Query(nil, repository.NewRouterWithoutSpecification())
+	if err != nil {
+		return fmt.Errorf("Failed to query routers: %v", err)
+	}
+
+	regged := len(routers)
+	loaded := len(Routers)
+	if loaded != regged {
+		return fmt.Errorf("Loaded %d, registered %d routers", loaded, regged)
+	}
+
+	for _, router := range routers {
+		if val, ok := Routers[*router.Id]; ok {
+			if val.Key != *router.Key {
+				return fmt.Errorf("%s (id=%d) registered with key=%s", val, *router.Id, *router.Key)
+			}
+		}
+	}
+
+	return nil
+}
 
 type PaymentInstrumentFunc func (repository.LoggerFunc) instruments.PaymentInstrument
 
@@ -25,7 +107,11 @@ func (pi PaymentInstrument) String() string {
 }
 
 func InstrumentApi(instrument *repository.Instrument, logger repository.LoggerFunc) (error, instruments.PaymentInstrument) {
-	return nil, PaymentInstruments[*instrument.Id].Plugin(logger)
+	if val, ok := PaymentInstruments[*instrument.Id]; ok {
+		return nil, val.Plugin(logger)
+	}
+
+	return fmt.Errorf("Instrument with ID=%v not found", *instrument.Id), nil
 }
 
 func RegisterPaymentInstrument(id int, key string, instrumentFunc PaymentInstrumentFunc) error {
@@ -108,7 +194,11 @@ func BankApi(channel *repository.Channel, account *repository.Account, logger re
 		return fmt.Errorf("account channel id %d != channel id %d", aid, cid), nil
 	}
 
-	return nil, BankChannels[cid].Plugin(account, logger)
+	if val, ok := BankChannels[cid]; ok {
+		return nil, val.Plugin(account, logger)
+	}
+
+	return fmt.Errorf("Bank channel with ID=%v not found", cid), nil
 }
 
 func RegisterBankChannel(id int, key string, channelFunc BankChannelFunc) error {

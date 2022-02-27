@@ -18,6 +18,8 @@ import (
 
 	"github.com/serg666/gateway/plugins"
 
+	"github.com/serg666/gateway/plugins/routers/visamaster"
+
 	"github.com/serg666/gateway/plugins/instruments/card"
 
 	"github.com/serg666/gateway/plugins/channels/kvellbank"
@@ -107,6 +109,11 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
 	accountStore := repository.NewPGPoolAccountStore(pgPool, loggerFunc)
 	instrumentStore := repository.NewPGPoolInstrumentStore(pgPool, loggerFunc)
+	routerStore := repository.NewPGPoolRouterStore(pgPool, loggerFunc)
+
+	if visamaster.Registered != nil {
+		log.Fatalf("Can not register visamaster router: %v", visamaster.Registered)
+	}
 
 	if bankcard.Registered != nil {
 		log.Fatalf("Can not register bank card instrument type: %v", bankcard.Registered)
@@ -134,6 +141,14 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 
 	if err := plugins.CheckPaymentInstruments(instrumentStore); err != nil {
 		log.Fatalf("Failed to check payment instruments: %v", err)
+	}
+
+	if err := plugins.RegisterRouters(routerStore); err != nil {
+		log.Fatalf("Failed to register routers: %v", err)
+	}
+
+	if err := plugins.CheckRouters(routerStore); err != nil {
+		log.Fatalf("Failed to check routers: %v", err)
 	}
 
 	// Set up a channel to listen to for interrupt signals

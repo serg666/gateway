@@ -62,6 +62,14 @@ func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
 		return
 	}
 
+	err, instrumentApi := plugins.InstrumentApi(instruments[0], th.loggerFunc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
 	// @todo: somehow find channel and account within the channel to make authorize request to bank api (routing) 
 	err, overall, channels := th.channelStore.Query(nil, repository.NewChannelSpecificationByID(2))
 	th.loggerFunc(c).Printf("err: %v, overall: %v, channels: %v", err, overall, channels[0])
@@ -73,8 +81,7 @@ func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
 	th.loggerFunc(c).Printf("err: %v", err)
 	if err == nil {
 		th.loggerFunc(c).Printf("bank api: %v %T", bankApi, bankApi)
-		err, instrumentApi := plugins.InstrumentApi(instruments[0], th.loggerFunc)
-		th.loggerFunc(c).Printf("err, instrument: %v, %v (%T)", err, instrumentApi, instrumentApi)
+		th.loggerFunc(c).Printf("instrument: %v, %v (%T)", instrumentApi, instrumentApi)
 		bankApi.Authorize(c, instrumentApi)
 	}
 
