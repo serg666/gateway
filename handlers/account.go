@@ -124,8 +124,12 @@ func (ah *accountHandler) CreateAccountHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, account)
 }
 
-func (ah *accountHandler) refreshAccountCurrency(c *gin.Context, account *repository.Account) error {
-	err, _, currencies := ah.currencyStore.Query(c, repository.NewCurrencySpecificationByID(
+func RefreshAccountCurrency(c *gin.Context, account *repository.Account, currencyStore repository.CurrencyRepository) error {
+	if !(account.Currency != nil && account.Currency.Id != nil) {
+		return nil
+	}
+
+	err, _, currencies := currencyStore.Query(c, repository.NewCurrencySpecificationByID(
 		*account.Currency.Id,
 	))
 
@@ -140,8 +144,11 @@ func (ah *accountHandler) refreshAccountCurrency(c *gin.Context, account *reposi
 	return nil
 }
 
-func (ah *accountHandler) refreshAccountChannel(c *gin.Context, account *repository.Account) error {
-	err, _, channels := ah.channelStore.Query(c, repository.NewChannelSpecificationByID(
+func RefreshAccountChannel(c *gin.Context, account *repository.Account, channelStore repository.ChannelRepository) error {
+	if !(account.Channel != nil && account.Channel.Id != nil) {
+		return nil
+	}
+	err, _, channels := channelStore.Query(c, repository.NewChannelSpecificationByID(
 		*account.Channel.Id,
 	))
 
@@ -178,14 +185,14 @@ func (ah *accountHandler) GetAccountsHandler(c *gin.Context) {
 	}
 
 	for _, account := range accounts {
-		if err := ah.refreshAccountCurrency(c, account); err != nil {
+		if err := RefreshAccountCurrency(c, account, ah.currencyStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
 			return
 		}
 
-		if err := ah.refreshAccountChannel(c, account); err != nil {
+		if err := RefreshAccountChannel(c, account, ah.channelStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -225,14 +232,14 @@ func (ah *accountHandler) GetAccountHandler(c *gin.Context) {
 	}
 
 	for _, account := range accounts {
-		if err := ah.refreshAccountCurrency(c, account); err != nil {
+		if err := RefreshAccountCurrency(c, account, ah.currencyStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
 			return
 		}
 
-		if err := ah.refreshAccountChannel(c, account); err != nil {
+		if err := RefreshAccountChannel(c, account, ah.channelStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -274,22 +281,18 @@ func (ah *accountHandler) DeleteAccountHandler(c *gin.Context) {
 		return
 	}
 
-	if account.Currency != nil {
-		if err := ah.refreshAccountCurrency(c, account); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
+	if err := RefreshAccountCurrency(c, account, ah.currencyStore); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
 	}
 
-	if account.Channel != nil {
-		if err := ah.refreshAccountChannel(c, account); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
+	if err := RefreshAccountChannel(c, account, ah.channelStore); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, account)
@@ -387,7 +390,7 @@ func (ah *accountHandler) PatchAccountHandler(c *gin.Context) {
 
 	// @note: refresh account currency
 	if account.Currency.Id != nil && req.CurrencyCode == nil {
-		if err := ah.refreshAccountCurrency(c, account); err != nil {
+		if err := RefreshAccountCurrency(c, account, ah.currencyStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -397,7 +400,7 @@ func (ah *accountHandler) PatchAccountHandler(c *gin.Context) {
 
 	// @note: refresh account channel
 	if account.Channel.Id != nil && req.ChannelKey == nil {
-		if err := ah.refreshAccountChannel(c, account); err != nil {
+		if err := RefreshAccountChannel(c, account, ah.channelStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})

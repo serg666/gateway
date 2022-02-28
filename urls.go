@@ -26,6 +26,8 @@ func MakeHandler(
 		instrumentStore,
 		accountStore,
 		routerStore,
+		currencyStore,
+		channelStore,
 		loggerFunc,
 	)
 	accountHandler := handlers.NewAccountHandler(accountStore, currencyStore, channelStore, loggerFunc)
@@ -63,6 +65,9 @@ func MakeHandler(
 
 	// @note: admin interface (should be moved to another web service)
 	handler.POST("/routes", routeHandler.CreateRouteHandler)
+	handler.GET("/routes", routeHandler.GetRoutesHandler)
+	handler.GET("/routes/:id", routeHandler.GetRouteHandler)
+	handler.DELETE("/routes/:id", routeHandler.DeleteRouteHandler)
 
 	handler.POST("/accounts", accountHandler.CreateAccountHandler)
 	handler.GET("/accounts", accountHandler.GetAccountsHandler)

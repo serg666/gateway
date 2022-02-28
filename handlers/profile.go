@@ -59,7 +59,7 @@ func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
 	}
 
 	if profile.Currency != nil {
-		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+		if err := RefreshProfileCurrency(c, profile, ph.currencyStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -96,7 +96,7 @@ func (ph *profileHandler) GetProfileHandler(c *gin.Context) {
 	}
 
 	for _, profile := range profiles {
-		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+		if err := RefreshProfileCurrency(c, profile, ph.currencyStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -170,7 +170,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 
 	// @note: refresh profile currency
 	if profile.Currency.Id != nil && req.CurrencyCode == nil {
-		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+		if err := RefreshProfileCurrency(c, profile, ph.currencyStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -221,13 +221,17 @@ func (ph *profileHandler) CreateProfileHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, profile)
 }
 
-func (ph *profileHandler) refreshProfileCurrency(c *gin.Context, profile *repository.Profile) error {
-	err, _, currencies := ph.currencyStore.Query(c, repository.NewCurrencySpecificationByID(
+func RefreshProfileCurrency(c *gin.Context, profile *repository.Profile, currencyStore repository.CurrencyRepository) error {
+	if !(profile.Currency != nil && profile.Currency.Id != nil) {
+		return nil
+	}
+
+	err, _, currencies := currencyStore.Query(c, repository.NewCurrencySpecificationByID(
 		*profile.Currency.Id,
 	))
 
 	if err != nil {
-		return fmt.Errorf("Can not update proile currency: %v", err)
+		return fmt.Errorf("Can not update profile currency: %v", err)
 	}
 
 	for _, currency := range currencies {
@@ -259,7 +263,7 @@ func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 	}
 
 	for _, profile := range profiles {
-		if err := ph.refreshProfileCurrency(c, profile); err != nil {
+		if err := RefreshProfileCurrency(c, profile, ph.currencyStore); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
