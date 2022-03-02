@@ -68,6 +68,7 @@ func MakeHandler(
 	handler.GET("/routes", routeHandler.GetRoutesHandler)
 	handler.GET("/routes/:id", routeHandler.GetRouteHandler)
 	handler.DELETE("/routes/:id", routeHandler.DeleteRouteHandler)
+	handler.PATCH("/routes/:id", routeHandler.PatchRouteHandler)
 
 	handler.POST("/accounts", accountHandler.CreateAccountHandler)
 	handler.GET("/accounts", accountHandler.GetAccountsHandler)
