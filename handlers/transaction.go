@@ -20,6 +20,52 @@ type transactionHandler struct {
 	routerStore     repository.RouterRepository
 }
 
+func (th *transactionHandler) route(
+	c *gin.Context,
+	profile *repository.Profile,
+	instrument *repository.Instrument,
+) (error, *repository.Account) {
+	err, _, routes := th.routeStore.Query(c, repository.NewRouteSpecificationByProfileAndInstrument(
+		profile,
+		instrument,
+	))
+
+	if err != nil {
+		return fmt.Errorf("Error quering route by profile and instrument: %v", err), nil
+	}
+
+	if len(routes) == 0 {
+		return fmt.Errorf("Route by profile and instrument not found: %v", err), nil
+	}
+
+	route := routes[0]
+
+	if route.Router != nil {
+		err, routerApi := plugins.RouterApi(route.Router, route.Settings, th.loggerFunc)
+		if err != nil {
+			return fmt.Errorf("Can not get router: %v", err), nil
+		}
+
+		if err := routerApi.Route(c, route.Account); err != nil {
+			return fmt.Errorf("Can not get route: %v", err), nil
+		}
+	}
+
+	if err := RefreshRouteAccount(c, route, th.accountStore); err != nil {
+		return fmt.Errorf("Can not refresh route account: %v", err), nil
+	}
+
+	if err := RefreshAccountCurrency(c, route.Account, th.currencyStore); err != nil {
+		return fmt.Errorf("Can not refresh account currency: %v", err), nil
+	}
+
+	if err := RefreshAccountChannel(c, route.Account, th.channelStore); err != nil {
+		return fmt.Errorf("Can not refresh account channel: %v", err), nil
+	}
+
+	return nil, route.Account
+}
+
 func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
 	id, err := strconv.Atoi(c.Params.ByName("id"))
 	if err !=  nil {
@@ -64,28 +110,37 @@ func (th *transactionHandler) AuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, instrumentApi := plugins.InstrumentApi(instruments[0], th.loggerFunc)
+	profile := profiles[0]
+	instrument := instruments[0]
+
+	err, account := th.route(c, profile, instrument)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
 		return
 	}
 
-	// @todo: somehow find channel and account within the channel to make authorize request to bank api (routing)
-	err, overall, channels := th.channelStore.Query(nil, repository.NewChannelSpecificationByID(2))
-	th.loggerFunc(c).Printf("err: %v, overall: %v, channels: %v", err, overall, channels[0])
-
-	err, overall, accounts := th.accountStore.Query(nil, repository.NewAccountSpecificationByID(26))
-	th.loggerFunc(c).Printf("err: %v, overall: %v, accounts: %v", err, overall, accounts[0])
-
-	err, bankApi := plugins.BankApi(channels[0], accounts[0], th.loggerFunc)
-	th.loggerFunc(c).Printf("err: %v", err)
-	if err == nil {
-		th.loggerFunc(c).Printf("bank api: %v %T", bankApi, bankApi)
-		th.loggerFunc(c).Printf("instrument: %v, %v (%T)", instrumentApi, instrumentApi)
-		bankApi.Authorize(c, instrumentApi)
+	err, bankApi := plugins.BankApi(account, th.loggerFunc)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
 	}
+
+	err, instrumentApi := plugins.InstrumentApi(instrument, th.loggerFunc)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	th.loggerFunc(c).Printf("bank api: %v (%T)", bankApi, bankApi)
+	th.loggerFunc(c).Printf("instrument: %v (%T)", instrumentApi, instrumentApi)
+	th.loggerFunc(c).Printf("acc: %v (%T)", account, account)
+	bankApi.Authorize(c, instrumentApi)
 
 	c.JSON(http.StatusOK, gin.H{"message":"ok"})
 }

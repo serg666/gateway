@@ -6,5 +6,5 @@ import (
 )
 
 type Router interface {
-	Route(c *gin.Context, channel *repository.Channel, account *repository.Account) (error, *repository.Channel, *repository.Account)
+	Route(c *gin.Context, account *repository.Account) (error)
 }

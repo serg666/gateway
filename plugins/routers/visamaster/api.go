@@ -26,7 +26,7 @@ type VisaMasterRouter struct {
 	settings *repository.RouterSettings
 }
 
-func (vmr *VisaMasterRouter) Route(c *gin.Context, channel *repository.Channel, account *repository.Account) (error, *repository.Channel, *repository.Account) {
+func (vmr *VisaMasterRouter) Route(c *gin.Context, account *repository.Account) error {
 	vmr.logger(c).Print("some message")
-	return nil, channel, account
+	return nil
 }

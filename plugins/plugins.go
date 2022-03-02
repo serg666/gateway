@@ -26,7 +26,11 @@ func (r Router) String() string {
 	return fmt.Sprintf("router <%s>", r.Key)
 }
 
-func RouterApi(router *repository.Router, settings *repository.RouterSettings, logger repository.LoggerFunc) (error, routers.Router) {
+func RouterApi(
+	router *repository.Router,
+	settings *repository.RouterSettings,
+	logger repository.LoggerFunc,
+) (error, routers.Router) {
 	if val, ok := Routers[*router.Id]; ok {
 		return nil, val.Plugin(settings, logger)
 	}
@@ -187,12 +191,8 @@ func (bc BankChannel) String() string {
 	return fmt.Sprintf("bank channel <%s>", bc.Key)
 }
 
-func BankApi(channel *repository.Channel, account *repository.Account, logger repository.LoggerFunc) (error, channels.BankChannel) {
-	aid := *account.Channel.Id
-	cid := *channel.Id
-	if aid != cid {
-		return fmt.Errorf("account channel id %d != channel id %d", aid, cid), nil
-	}
+func BankApi(account *repository.Account, logger repository.LoggerFunc) (error, channels.BankChannel) {
+	cid := *account.Channel.Id
 
 	if val, ok := BankChannels[cid]; ok {
 		return nil, val.Plugin(account, logger)
