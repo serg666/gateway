@@ -68,8 +68,8 @@ func (rh *routeHandler) CreateRouteHandler(c *gin.Context) {
 		return
 	}
 
-	account := &repository.Account{}
-	router  := &repository.Router{}
+	var account *repository.Account
+	var router  *repository.Router
 
 	if req.Account != nil {
 		err, _, accounts := rh.accountStore.Query(c, repository.NewAccountSpecificationByID(*req.Account))
@@ -375,11 +375,7 @@ func (rh *routeHandler) DeleteRouteHandler(c *gin.Context) {
 	}
 
 	route := &repository.Route{
-		Id:         &id,
-		Profile:    &repository.Profile{},
-		Instrument: &repository.Instrument{},
-		Account:    &repository.Account{},
-		Router:     &repository.Router{},
+		Id: &id,
 	}
 
 	err, notfound := rh.routeStore.Delete(c, route)

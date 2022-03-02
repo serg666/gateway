@@ -261,8 +261,6 @@ func (ah *accountHandler) DeleteAccountHandler(c *gin.Context) {
 
 	account := &repository.Account{
 		Id:       &id,
-		Currency: &repository.Currency{},
-		Channel:  &repository.Channel{},
 	}
 
 	err, notfound := ah.store.Delete(c, account)
@@ -315,8 +313,8 @@ func (ah *accountHandler) PatchAccountHandler(c *gin.Context) {
 		return
 	}
 
-	currency := &repository.Currency{}
-	channel := &repository.Channel{}
+	var currency *repository.Currency
+	var channel  *repository.Channel
 
 	if req.CurrencyCode != nil {
 		err, _, currencies := ah.currencyStore.Query(c, repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))
@@ -389,23 +387,19 @@ func (ah *accountHandler) PatchAccountHandler(c *gin.Context) {
 	}
 
 	// @note: refresh account currency
-	if account.Currency.Id != nil && req.CurrencyCode == nil {
-		if err := RefreshAccountCurrency(c, account, ah.currencyStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
+	if err := RefreshAccountCurrency(c, account, ah.currencyStore); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
 	}
 
 	// @note: refresh account channel
-	if account.Channel.Id != nil && req.ChannelKey == nil {
-		if err := RefreshAccountChannel(c, account, ah.channelStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
+	if err := RefreshAccountChannel(c, account, ah.channelStore); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, account)
