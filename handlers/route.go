@@ -230,49 +230,7 @@ func (rh *routeHandler) GetRoutesHandler(c *gin.Context) {
 	}
 
 	for _, route := range routes {
-		if err := RefreshRouteProfile(c, route, rh.profileStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshProfileCurrency(c, route.Profile, rh.currencyStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshRouteInstrument(c, route, rh.instrumentStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshRouteAccount(c, route, rh.accountStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshAccountCurrency(c, route.Account, rh.currencyStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshAccountChannel(c, route.Account, rh.channelStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshRouteRouter(c, route, rh.routerStore); err != nil {
+		if err := rh.refreshRouteForeigns(c, route); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -284,6 +242,38 @@ func (rh *routeHandler) GetRoutesHandler(c *gin.Context) {
 		"overall": overall,
 		"routes": routes,
 	})
+}
+
+func (rh *routeHandler) refreshRouteForeigns(c *gin.Context, route *repository.Route) error {
+	if err := RefreshRouteProfile(c, route, rh.profileStore); err != nil {
+		return err
+	}
+
+	if err := RefreshProfileCurrency(c, route.Profile, rh.currencyStore); err != nil {
+		return err
+	}
+
+	if err := RefreshRouteInstrument(c, route, rh.instrumentStore); err != nil {
+		return err
+	}
+
+	if err := RefreshRouteAccount(c, route, rh.accountStore); err != nil {
+		return err
+	}
+
+	if err := RefreshAccountCurrency(c, route.Account, rh.currencyStore); err != nil {
+		return err
+	}
+
+	if err := RefreshAccountChannel(c, route.Account, rh.channelStore); err != nil {
+		return err
+	}
+
+	if err := RefreshRouteRouter(c, route, rh.routerStore); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (rh *routeHandler) GetRouteHandler(c *gin.Context) {
@@ -312,49 +302,7 @@ func (rh *routeHandler) GetRouteHandler(c *gin.Context) {
 	}
 
 	for _, route := range routes {
-		if err := RefreshRouteProfile(c, route, rh.profileStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshProfileCurrency(c, route.Profile, rh.currencyStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshRouteInstrument(c, route, rh.instrumentStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshRouteAccount(c, route, rh.accountStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshAccountCurrency(c, route.Account, rh.currencyStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshAccountChannel(c, route.Account, rh.channelStore); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-
-		if err := RefreshRouteRouter(c, route, rh.routerStore); err != nil {
+		if err := rh.refreshRouteForeigns(c, route); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": err.Error(),
 			})
@@ -394,49 +342,7 @@ func (rh *routeHandler) DeleteRouteHandler(c *gin.Context) {
 		return
 	}
 
-	if err := RefreshRouteProfile(c, route, rh.profileStore); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := RefreshProfileCurrency(c, route.Profile, rh.currencyStore); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := RefreshRouteInstrument(c, route, rh.instrumentStore); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := RefreshRouteAccount(c, route, rh.accountStore); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := RefreshAccountCurrency(c, route.Account, rh.currencyStore); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := RefreshAccountChannel(c, route.Account, rh.channelStore); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := RefreshRouteRouter(c, route, rh.routerStore); err != nil {
+	if err := rh.refreshRouteForeigns(c, route); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
