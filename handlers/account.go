@@ -124,57 +124,6 @@ func (ah *accountHandler) CreateAccountHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, account)
 }
 
-func RefreshAccountCurrency(c *gin.Context, account *repository.Account, currencyStore repository.CurrencyRepository) error {
-	if !(account.Currency != nil && account.Currency.Id != nil) {
-		return nil
-	}
-
-	err, _, currencies := currencyStore.Query(c, repository.NewCurrencySpecificationByID(
-		*account.Currency.Id,
-	))
-
-	if err != nil {
-		return fmt.Errorf("Can not update account currency: %v", err)
-	}
-
-	for _, currency := range currencies {
-		account.Currency = currency
-	}
-
-	return nil
-}
-
-func RefreshAccountChannel(c *gin.Context, account *repository.Account, channelStore repository.ChannelRepository) error {
-	if !(account.Channel != nil && account.Channel.Id != nil) {
-		return nil
-	}
-	err, _, channels := channelStore.Query(c, repository.NewChannelSpecificationByID(
-		*account.Channel.Id,
-	))
-
-	if err != nil {
-		return fmt.Errorf("Can not update account channel: %v", err)
-	}
-
-	for _, channel := range channels {
-		account.Channel = channel
-	}
-
-	return nil
-}
-
-func (ah *accountHandler) refreshAccountForeigns(c *gin.Context, account *repository.Account) error {
-	if err := RefreshAccountCurrency(c, account, ah.currencyStore); err != nil {
-		return err
-	}
-
-	if err := RefreshAccountChannel(c, account, ah.channelStore); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (ah *accountHandler) GetAccountsHandler(c *gin.Context) {
 	var req LimitAndOffsetRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -194,15 +143,6 @@ func (ah *accountHandler) GetAccountsHandler(c *gin.Context) {
 			"message": err.Error(),
 		})
 		return
-	}
-
-	for _, account := range accounts {
-		if err := ah.refreshAccountForeigns(c, account); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -236,15 +176,6 @@ func (ah *accountHandler) GetAccountHandler(c *gin.Context) {
 		return
 	}
 
-	for _, account := range accounts {
-		if err := ah.refreshAccountForeigns(c, account); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-	}
-
 	c.JSON(http.StatusOK, accounts[0])
 }
 
@@ -271,13 +202,6 @@ func (ah *accountHandler) DeleteAccountHandler(c *gin.Context) {
 	}
 
 	if err !=  nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := ah.refreshAccountForeigns(c, account); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -371,13 +295,6 @@ func (ah *accountHandler) PatchAccountHandler(c *gin.Context) {
 	}
 
 	if err !=  nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := ah.refreshAccountForeigns(c, account); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})

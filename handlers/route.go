@@ -136,86 +136,6 @@ func (rh *routeHandler) CreateRouteHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, route)
 }
 
-func RefreshRouteProfile(c *gin.Context, route *repository.Route, profileStore repository.ProfileRepository) error {
-	if !(route.Profile != nil && route.Profile.Id != nil) {
-		return nil
-	}
-
-	err, _, profiles := profileStore.Query(c, repository.NewProfileSpecificationByID(
-		*route.Profile.Id,
-	))
-
-	if err != nil {
-		return fmt.Errorf("Can not update route profile: %v", err)
-	}
-
-	for _, profile := range profiles {
-		route.Profile = profile
-	}
-
-	return nil
-}
-
-func RefreshRouteRouter(c *gin.Context, route *repository.Route, routerStore repository.RouterRepository) error {
-	if !(route.Router != nil && route.Router.Id != nil) {
-		return nil
-	}
-
-	err, _, routers := routerStore.Query(c, repository.NewRouterSpecificationByID(
-		*route.Router.Id,
-	))
-
-	if err != nil {
-		return fmt.Errorf("Can not update route router: %v", err)
-	}
-
-	for _, router := range routers {
-		route.Router = router
-	}
-
-	return nil
-}
-
-func RefreshRouteInstrument(c *gin.Context, route *repository.Route, instrumentStore repository.InstrumentRepository) error {
-	if !(route.Instrument != nil && route.Instrument.Id != nil) {
-		return nil
-	}
-
-	err, _, instruments := instrumentStore.Query(c, repository.NewInstrumentSpecificationByID(
-		*route.Instrument.Id,
-	))
-
-	if err != nil {
-		return fmt.Errorf("Can not update route instrument: %v", err)
-	}
-
-	for _, instrument := range instruments {
-		route.Instrument = instrument
-	}
-
-	return nil
-}
-
-func RefreshRouteAccount(c *gin.Context, route *repository.Route, accountStore repository.AccountRepository) error {
-	if !(route.Account != nil && route.Account.Id != nil) {
-		return nil
-	}
-
-	err, _, accounts := accountStore.Query(c, repository.NewAccountSpecificationByID(
-		*route.Account.Id,
-	))
-
-	if err != nil {
-		return fmt.Errorf("Can not update route account: %v", err)
-	}
-
-	for _, account := range accounts {
-		route.Account = account
-	}
-
-	return nil
-}
-
 func (rh *routeHandler) GetRoutesHandler(c *gin.Context) {
 	var req LimitAndOffsetRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -237,51 +157,10 @@ func (rh *routeHandler) GetRoutesHandler(c *gin.Context) {
 		return
 	}
 
-	for _, route := range routes {
-		if err := rh.refreshRouteForeigns(c, route); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"overall": overall,
 		"routes": routes,
 	})
-}
-
-func (rh *routeHandler) refreshRouteForeigns(c *gin.Context, route *repository.Route) error {
-	if err := RefreshRouteProfile(c, route, rh.profileStore); err != nil {
-		return err
-	}
-
-	if err := RefreshProfileCurrency(c, route.Profile, rh.currencyStore); err != nil {
-		return err
-	}
-
-	if err := RefreshRouteInstrument(c, route, rh.instrumentStore); err != nil {
-		return err
-	}
-
-	if err := RefreshRouteAccount(c, route, rh.accountStore); err != nil {
-		return err
-	}
-
-	if err := RefreshAccountCurrency(c, route.Account, rh.currencyStore); err != nil {
-		return err
-	}
-
-	if err := RefreshAccountChannel(c, route.Account, rh.channelStore); err != nil {
-		return err
-	}
-
-	if err := RefreshRouteRouter(c, route, rh.routerStore); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (rh *routeHandler) GetRouteHandler(c *gin.Context) {
@@ -307,15 +186,6 @@ func (rh *routeHandler) GetRouteHandler(c *gin.Context) {
 			"message": fmt.Sprintf("Account with id=%v not found", id),
 		})
 		return
-	}
-
-	for _, route := range routes {
-		if err := rh.refreshRouteForeigns(c, route); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
 	}
 
 	c.JSON(http.StatusOK, routes[0])
@@ -344,13 +214,6 @@ func (rh *routeHandler) DeleteRouteHandler(c *gin.Context) {
 	}
 
 	if err !=  nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := rh.refreshRouteForeigns(c, route); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -478,13 +341,6 @@ func (rh *routeHandler) PatchRouteHandler(c *gin.Context) {
 	}
 
 	if err !=  nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if err := rh.refreshRouteForeigns(c, route); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})

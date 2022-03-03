@@ -105,14 +105,21 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 		log.Fatalf("Can not make pg pool: %v", err)
 	}
 
-	profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), loggerFunc)
 	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
 	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
+	profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), currencyStore, loggerFunc)
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
-	accountStore := repository.NewPGPoolAccountStore(pgPool, loggerFunc)
+	accountStore := repository.NewPGPoolAccountStore(pgPool, currencyStore, channelStore, loggerFunc)
 	instrumentStore := repository.NewPGPoolInstrumentStore(pgPool, loggerFunc)
 	routerStore := repository.NewPGPoolRouterStore(pgPool, loggerFunc)
-	routeStore := repository.NewPGPoolRouteStore(pgPool, loggerFunc)
+	routeStore := repository.NewPGPoolRouteStore(
+		pgPool,
+		profileStore,
+		instrumentStore,
+		accountStore,
+		routerStore,
+		loggerFunc,
+	)
 
 	if visamaster.Registered != nil {
 		log.Fatalf("Can not register visamaster router: %v", visamaster.Registered)

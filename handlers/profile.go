@@ -58,13 +58,6 @@ func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
 		return
 	}
 
-	if err := ph.refreshProfileForeigns(c, profile); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
 	c.JSON(http.StatusOK, profile)
 }
 
@@ -91,15 +84,6 @@ func (ph *profileHandler) GetProfileHandler(c *gin.Context) {
 			"message": fmt.Sprintf("Profile with id=%v not found", id),
 		})
 		return
-	}
-
-	for _, profile := range profiles {
-		if err := ph.refreshProfileForeigns(c, profile); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
 	}
 
 	c.JSON(http.StatusOK, profiles[0])
@@ -166,13 +150,6 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 		return
 	}
 
-	if err := ph.refreshProfileForeigns(c, profile); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
 	c.JSON(http.StatusOK, profile)
 }
 
@@ -216,34 +193,6 @@ func (ph *profileHandler) CreateProfileHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, profile)
 }
 
-func RefreshProfileCurrency(c *gin.Context, profile *repository.Profile, currencyStore repository.CurrencyRepository) error {
-	if !(profile.Currency != nil && profile.Currency.Id != nil) {
-		return nil
-	}
-
-	err, _, currencies := currencyStore.Query(c, repository.NewCurrencySpecificationByID(
-		*profile.Currency.Id,
-	))
-
-	if err != nil {
-		return fmt.Errorf("Can not update profile currency: %v", err)
-	}
-
-	for _, currency := range currencies {
-		profile.Currency = currency
-	}
-
-	return nil
-}
-
-func (ph *profileHandler) refreshProfileForeigns(c *gin.Context, profile *repository.Profile) error {
-	if err := RefreshProfileCurrency(c, profile, ph.currencyStore); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 	var req LimitAndOffsetRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -263,15 +212,6 @@ func (ph *profileHandler) GetProfilesHandler(c *gin.Context) {
 			"message": err.Error(),
 		})
 		return
-	}
-
-	for _, profile := range profiles {
-		if err := ph.refreshProfileForeigns(c, profile); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
-			return
-		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

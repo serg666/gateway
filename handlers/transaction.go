@@ -51,18 +51,6 @@ func (th *transactionHandler) route(
 		}
 	}
 
-	if err := RefreshRouteAccount(c, route, th.accountStore); err != nil {
-		return fmt.Errorf("Can not refresh route account: %v", err), nil
-	}
-
-	if err := RefreshAccountCurrency(c, route.Account, th.currencyStore); err != nil {
-		return fmt.Errorf("Can not refresh account currency: %v", err), nil
-	}
-
-	if err := RefreshAccountChannel(c, route.Account, th.channelStore); err != nil {
-		return fmt.Errorf("Can not refresh account channel: %v", err), nil
-	}
-
 	return nil, route.Account
 }
 
