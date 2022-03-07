@@ -2,11 +2,12 @@ package channels
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/serg666/gateway/plugins/instruments"
+	"github.com/serg666/repository"
 )
 
 type BankChannel interface {
-	Authorize (c *gin.Context, instrument instruments.PaymentInstrument)
+	SutableForInstrument(instrument *repository.Instrument) bool
+	Authorize (c *gin.Context, instrument *repository.Instrument) (error, error)
 	PreAuthorize(c *gin.Context)
 	Confirm(c *gin.Context)
 	Reverse(c *gin.Context)

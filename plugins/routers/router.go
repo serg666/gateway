@@ -6,5 +6,6 @@ import (
 )
 
 type Router interface {
-	Route(c *gin.Context, account *repository.Account) (error)
+	SutableForInstrument(instrument *repository.Instrument) bool
+	Route(c *gin.Context, route *repository.Route) error
 }

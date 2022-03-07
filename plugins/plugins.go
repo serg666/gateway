@@ -26,16 +26,21 @@ func (r Router) String() string {
 	return fmt.Sprintf("router <%s>", r.Key)
 }
 
-func RouterApi(
-	router *repository.Router,
-	settings *repository.RouterSettings,
-	logger repository.LoggerFunc,
-) (error, routers.Router) {
-	if val, ok := Routers[*router.Id]; ok {
-		return nil, val.Plugin(settings, logger)
+func RouterApi(route *repository.Route, logger repository.LoggerFunc) (error, routers.Router) {
+	if route.Router == nil {
+		return fmt.Errorf("Route ID=<%d> has no router", *route.Id), nil
 	}
 
-	return fmt.Errorf("Router with ID=%v not found", *router.Id), nil
+	if val, ok := Routers[*route.Router.Id]; ok {
+		api := val.Plugin(route.Settings, logger)
+		if api.SutableForInstrument(route.Instrument) {
+			return nil, api
+		}
+
+		return fmt.Errorf("%s not sutable for instument %d", val, *route.Instrument.Id), nil
+	}
+
+	return fmt.Errorf("Router with ID=%v not found", *route.Router.Id), nil
 }
 
 func RegisterRouter(id int, key string, routerFunc RouterFunc) error {
@@ -191,11 +196,16 @@ func (bc BankChannel) String() string {
 	return fmt.Sprintf("bank channel <%s>", bc.Key)
 }
 
-func BankApi(account *repository.Account, logger repository.LoggerFunc) (error, channels.BankChannel) {
-	cid := *account.Channel.Id
+func BankApi(route *repository.Route, logger repository.LoggerFunc) (error, channels.BankChannel) {
+	cid := *route.Account.Channel.Id
 
 	if val, ok := BankChannels[cid]; ok {
-		return nil, val.Plugin(account, logger)
+		api := val.Plugin(route.Account, logger)
+		if api.SutableForInstrument(route.Instrument) {
+			return nil, api
+		}
+
+		return fmt.Errorf("%s not sutable for instument %d", val, *route.Instrument.Id), nil
 	}
 
 	return fmt.Errorf("Bank channel with ID=%v not found", cid), nil

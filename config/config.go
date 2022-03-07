@@ -34,6 +34,7 @@ type HandlerFunc func(
 	repository.ChannelRepository,
 	repository.ProfileRepository,
 	repository.CurrencyRepository,
+	repository.CardRepository,
 	repository.LoggerFunc,
 ) *gin.Engine
 
@@ -108,6 +109,7 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
 	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
 	profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), currencyStore, loggerFunc)
+	cardStore := repository.NewOrderedMapCardStore(orderedmap.New(), loggerFunc)
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
 	accountStore := repository.NewPGPoolAccountStore(pgPool, currencyStore, channelStore, loggerFunc)
 	instrumentStore := repository.NewPGPoolInstrumentStore(pgPool, loggerFunc)
@@ -183,6 +185,7 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 			channelStore,
 			profileStore,
 			currencyStore,
+			cardStore,
 			loggerFunc,
 		),
 		ReadTimeout:    cfg.Server.Timeout.Read * time.Second,

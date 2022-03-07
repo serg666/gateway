@@ -18,6 +18,7 @@ func MakeHandler(
 	channelStore repository.ChannelRepository,
 	profileStore repository.ProfileRepository,
 	currencyStore repository.CurrencyRepository,
+	cardStore repository.CardRepository,
 	loggerFunc repository.LoggerFunc,
 ) *gin.Engine {
 	routeHandler := handlers.NewRouteHandler(
@@ -41,6 +42,7 @@ func MakeHandler(
 		accountStore,
 		channelStore,
 		currencyStore,
+		cardStore,
 		loggerFunc,
 	)
 
@@ -61,7 +63,7 @@ func MakeHandler(
 	)
 
 	// @note: payment interface
-	handler.POST("/profiles/:id/transactions/authorize/:instrument", transactionHandler.AuthorizeHandler)
+	handler.POST("/profiles/:id/transactions/authorize/card", transactionHandler.CardAuthorizeHandler)
 
 	// @note: admin interface (should be moved to another web service)
 	handler.POST("/routes", routeHandler.CreateRouteHandler)

@@ -3,8 +3,8 @@ package kvellbank
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/plugins"
+	"github.com/serg666/gateway/plugins/instruments/card"
 	"github.com/serg666/gateway/plugins/channels"
-	"github.com/serg666/gateway/plugins/instruments"
 	"github.com/serg666/repository"
 )
 
@@ -27,8 +27,13 @@ type KvellBankChannel struct {
 	account *repository.Account
 }
 
-func (kbc *KvellBankChannel) Authorize(c *gin.Context, instrument instruments.PaymentInstrument) {
+func (kbc *KvellBankChannel) SutableForInstrument(instrument *repository.Instrument) bool {
+	return *instrument.Id == bankcard.Id
+}
+
+func (kbc *KvellBankChannel) Authorize(c *gin.Context, instrument *repository.Instrument) (error, error) {
 	kbc.logger(c).Print("authorize int")
+	return nil, nil
 }
 
 func (kbc *KvellBankChannel) PreAuthorize(c *gin.Context) {

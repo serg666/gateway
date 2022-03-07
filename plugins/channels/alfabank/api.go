@@ -3,8 +3,8 @@ package alfabank
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/plugins"
+	"github.com/serg666/gateway/plugins/instruments/card"
 	"github.com/serg666/gateway/plugins/channels"
-	"github.com/serg666/gateway/plugins/instruments"
 	"github.com/serg666/repository"
 )
 
@@ -27,9 +27,17 @@ type AlfaBankChannel struct {
 	account *repository.Account
 }
 
-func (abc *AlfaBankChannel) Authorize(c *gin.Context, instrument instruments.PaymentInstrument) {
-	instrument.FromContext(c)
+func (abc *AlfaBankChannel) SutableForInstrument(instrument *repository.Instrument) bool {
+	return *instrument.Id == bankcard.Id
+}
+
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, instrument *repository.Instrument) (error, error) {
 	abc.logger(c).Print("authorize")
+	cardStore, exists := c.Get("cardStore")
+	abc.logger(c).Printf("store exists: %v", exists)
+	abc.logger(c).Printf("store: %v (%T)", cardStore, cardStore)
+
+	return nil, nil
 }
 
 func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context) {
