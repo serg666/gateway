@@ -19,6 +19,7 @@ func MakeHandler(
 	profileStore repository.ProfileRepository,
 	currencyStore repository.CurrencyRepository,
 	cardStore repository.CardRepository,
+	transactionStore repository.TransactionRepository,
 	loggerFunc repository.LoggerFunc,
 ) *gin.Engine {
 	routeHandler := handlers.NewRouteHandler(
@@ -43,6 +44,7 @@ func MakeHandler(
 		channelStore,
 		currencyStore,
 		cardStore,
+		transactionStore,
 		loggerFunc,
 	)
 

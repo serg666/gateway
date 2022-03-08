@@ -35,6 +35,7 @@ type HandlerFunc func(
 	repository.ProfileRepository,
 	repository.CurrencyRepository,
 	repository.CardRepository,
+	repository.TransactionRepository,
 	repository.LoggerFunc,
 ) *gin.Engine
 
@@ -122,6 +123,14 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 		routerStore,
 		loggerFunc,
 	)
+	transactionStore := repository.NewPGPoolTransactionStore(
+		pgPool,
+		profileStore,
+		instrumentStore,
+		accountStore,
+		currencyStore,
+		loggerFunc,
+	)
 
 	if visamaster.Registered != nil {
 		log.Fatalf("Can not register visamaster router: %v", visamaster.Registered)
@@ -186,6 +195,7 @@ func (cfg *Config) RunServer(handlerFunc HandlerFunc) {
 			profileStore,
 			currencyStore,
 			cardStore,
+			transactionStore,
 			loggerFunc,
 		),
 		ReadTimeout:    cfg.Server.Timeout.Read * time.Second,

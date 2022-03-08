@@ -31,13 +31,13 @@ func (abc *AlfaBankChannel) SutableForInstrument(instrument *repository.Instrume
 	return *instrument.Id == bankcard.Id
 }
 
-func (abc *AlfaBankChannel) Authorize(c *gin.Context, instrument *repository.Instrument) (error, error) {
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, instrument *repository.Instrument) error {
 	abc.logger(c).Print("authorize")
 	cardStore, exists := c.Get("cardStore")
 	abc.logger(c).Printf("store exists: %v", exists)
 	abc.logger(c).Printf("store: %v (%T)", cardStore, cardStore)
 
-	return nil, nil
+	return nil
 }
 
 func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context) {

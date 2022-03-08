@@ -11,15 +11,16 @@ import (
 )
 
 type transactionHandler struct {
-	loggerFunc      repository.LoggerFunc
-	profileStore    repository.ProfileRepository
-	accountStore    repository.AccountRepository
-	currencyStore   repository.CurrencyRepository
-	channelStore    repository.ChannelRepository
-	instrumentStore repository.InstrumentRepository
-	routeStore      repository.RouteRepository
-	routerStore     repository.RouterRepository
-	cardStore       repository.CardRepository
+	loggerFunc       repository.LoggerFunc
+	profileStore     repository.ProfileRepository
+	accountStore     repository.AccountRepository
+	currencyStore    repository.CurrencyRepository
+	channelStore     repository.ChannelRepository
+	instrumentStore  repository.InstrumentRepository
+	routeStore       repository.RouteRepository
+	routerStore      repository.RouterRepository
+	cardStore        repository.CardRepository
+	transactionStore repository.TransactionRepository
 }
 
 func (th *transactionHandler) route(
@@ -130,8 +131,39 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 
 	th.loggerFunc(c).Printf("using account: %v", route.Account)
 
-	err, transaction := bankApi.Authorize(c, instrument)
-	if err != nil {
+	_type := "auth"
+	status := "new"
+	i := 1
+	acs := "http://g.g"
+	pareq := "ddfds"
+	md := "fgdfgdf"
+	transaction := &repository.Transaction{
+		Type: &_type,
+		Status: &status,
+		Profile: profile,
+		Account: route.Account,
+		Instrument: instrument,
+		InstrumentId: &i,
+		Amount: &req.Amount,
+		Currency: profile.Currency,
+		AmountConverted: &req.Amount,
+		CurrencyConverted: profile.Currency,
+		OrderId: &req.OrderId,
+		ThreeDSecure10: &repository.ThreeDSecure10{
+			AcsUrl: &acs,
+			PaReq: &pareq,
+			MD: &md,
+		},
+	}
+
+	if err := th.transactionStore.Add(c, transaction); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err := bankApi.Authorize(c, instrument); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})
@@ -150,17 +182,19 @@ func NewTransactionHandler(
 	channelStore repository.ChannelRepository,
 	currencyStore repository.CurrencyRepository,
 	cardStore repository.CardRepository,
+	transactionStore repository.TransactionRepository,
 	loggerFunc repository.LoggerFunc,
 ) *transactionHandler {
 	return &transactionHandler{
-		loggerFunc:      loggerFunc,
-		profileStore:    profileStore,
-		accountStore:    accountStore,
-		currencyStore:   currencyStore,
-		channelStore:    channelStore,
-		instrumentStore: instrumentStore,
-		routeStore:      routeStore,
-		routerStore:     routerStore,
-		cardStore:       cardStore,
+		loggerFunc:       loggerFunc,
+		profileStore:     profileStore,
+		accountStore:     accountStore,
+		currencyStore:    currencyStore,
+		channelStore:     channelStore,
+		instrumentStore:  instrumentStore,
+		routeStore:       routeStore,
+		routerStore:      routerStore,
+		cardStore:        cardStore,
+		transactionStore: transactionStore,
 	}
 }

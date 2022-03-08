@@ -38,8 +38,9 @@ type Card struct {
 }
 
 type CardAuthorizeRequest struct {
-	Amount uint `json:"amount" binding:"required,min=1"`
-	Card   Card `json:"card" binding:"required"`
+	OrderId string `json:"order_id" binding:"required"`
+	Amount  uint   `json:"amount" binding:"required,min=1"`
+	Card    Card   `json:"card" binding:"required"`
 }
 
 type BankCard struct {
