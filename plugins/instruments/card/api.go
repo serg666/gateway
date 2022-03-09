@@ -31,8 +31,8 @@ func (t *ExpDate) UnmarshalJSON(b []byte) (err error) {
 }
 
 type Card struct {
-	Pan     string  `json:"pan" binding:"required"`
-	Cvv     string  `json:"cvv" binding:"required"`
+	Pan     string  `json:"pan" binding:"required,luhncheck"`
+	Cvv     string  `json:"cvv" binding:"required,iscvv"`
 	ExpDate ExpDate `json:"expire" binding:"required"`
 	Holder  string  `json:"holder" binding:"required"`
 }

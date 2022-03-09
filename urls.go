@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/durango/go-credit-card"
 	"github.com/go-playground/validator/v10"
 	"github.com/serg666/gateway/middlewares"
 	"github.com/serg666/gateway/handlers"
@@ -49,6 +50,15 @@ func MakeHandler(
 	)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("iscvv", func(fl validator.FieldLevel) bool {
+			card := creditcard.Card{Cvv: fl.Field().String()}
+			err := card.ValidateCVV()
+			return err == nil
+		})
+		v.RegisterValidation("luhncheck", func(fl validator.FieldLevel) bool {
+			card := creditcard.Card{Number: fl.Field().String()}
+			return card.ValidateNumber()
+		})
 		v.RegisterValidation("notempty", func(fl validator.FieldLevel) bool {
 			return fl.Field().Len() != 0
 		})
