@@ -33,14 +33,12 @@ func (abc *AlfaBankChannel) SutableForInstrument(instrument *repository.Instrume
 }
 
 func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
-	abc.logger(c).Print("authorize")
-
 	card, ok := instrumentInstance.(*repository.Card)
 	if !ok {
 		return fmt.Errorf("instrumentInstance has wrong type")
 	}
 
-	abc.logger(c).Printf("card: %v", card)
+	abc.logger(c).Printf("authorize card: %v", card)
 
 	return nil
 }

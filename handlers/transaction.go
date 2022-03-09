@@ -152,29 +152,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 
 	th.loggerFunc(c).Printf("using account: %v", route.Account)
 
-	_type := "auth"
-	status := "new"
-	acs := "http://g.g"
-	pareq := "ddfds"
-	md := "fgdfgdf"
-	transaction := &repository.Transaction{
-		Type: &_type,
-		Status: &status,
-		Profile: profile,
-		Account: route.Account,
-		Instrument: instrument,
-		InstrumentId: card.Id,
-		Amount: &req.Amount,
-		Currency: profile.Currency,
-		AmountConverted: &req.Amount,
-		CurrencyConverted: profile.Currency,
-		OrderId: &req.OrderId,
-		ThreeDSecure10: &repository.ThreeDSecure10{
-			AcsUrl: &acs,
-			PaReq: &pareq,
-			MD: &md,
-		},
-	}
+	transaction := NewTransaction("authorize", &req.OrderId, profile, route.Account, instrument, card.Id, &req.Amount, nil)
 
 	if err := th.transactionStore.Add(c, transaction); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -191,6 +169,33 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, transaction)
+}
+
+func NewTransaction(
+	txType string,
+	orderId *string,
+	profile *repository.Profile,
+	account *repository.Account,
+	instrument *repository.Instrument,
+	instrumentId *int,
+	amount *uint,
+	reference *repository.Transaction,
+) *repository.Transaction {
+	txStatus := "new"
+	return &repository.Transaction{
+		Type: &txType,
+		Status: &txStatus,
+		Profile: profile,
+		Account: account,
+		Instrument: instrument,
+		InstrumentId: instrumentId,
+		Currency: profile.Currency,
+		Amount: amount,
+		AmountConverted: amount, // @todo: convert amount to account currency from profile currency
+		CurrencyConverted: account.Currency,
+		OrderId: orderId,
+		Reference: reference,
+	}
 }
 
 func NewTransactionHandler(

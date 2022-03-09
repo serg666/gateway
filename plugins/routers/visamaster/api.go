@@ -66,7 +66,7 @@ func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, inst
 	if !ok {
 		return fmt.Errorf("instrumentInstance has wrong type")
 	}
-	vmr.logger(c).Printf("card: %v", card)
+	vmr.logger(c).Printf("visamaster routing card: %v", card)
 
 	err, _, maccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vms.MasterAcc))
 	if err != nil {
