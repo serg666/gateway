@@ -1,6 +1,7 @@
 package alfabank
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/instruments/card"
@@ -31,11 +32,15 @@ func (abc *AlfaBankChannel) SutableForInstrument(instrument *repository.Instrume
 	return *instrument.Id == bankcard.Id
 }
 
-func (abc *AlfaBankChannel) Authorize(c *gin.Context, instrument *repository.Instrument) error {
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
 	abc.logger(c).Print("authorize")
-	cardStore, exists := c.Get("cardStore")
-	abc.logger(c).Printf("store exists: %v", exists)
-	abc.logger(c).Printf("store: %v (%T)", cardStore, cardStore)
+
+	card, ok := instrumentInstance.(*repository.Card)
+	if !ok {
+		return fmt.Errorf("instrumentInstance has wrong type")
+	}
+
+	abc.logger(c).Printf("card: %v", card)
 
 	return nil
 }

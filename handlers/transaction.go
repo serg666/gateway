@@ -27,6 +27,7 @@ func (th *transactionHandler) route(
 	c *gin.Context,
 	profile *repository.Profile,
 	instrument *repository.Instrument,
+	instrumentInstance interface{},
 ) (error, *repository.Route) {
 	err, _, routes := th.routeStore.Query(c, repository.NewRouteSpecificationByProfileAndInstrument(
 		profile,
@@ -44,12 +45,12 @@ func (th *transactionHandler) route(
 	route := routes[0]
 
 	if route.Router != nil {
-		err, routerApi := plugins.RouterApi(route, th.loggerFunc)
+		err, routerApi := plugins.RouterApi(route, th.accountStore, th.loggerFunc)
 		if err != nil {
 			return fmt.Errorf("Can not get router: %v", err), nil
 		}
 
-		if err := routerApi.Route(c, route); err != nil {
+		if err := routerApi.Route(c, route, instrumentInstance); err != nil {
 			return fmt.Errorf("Can not get route: %v", err), nil
 		}
 	}
@@ -58,6 +59,14 @@ func (th *transactionHandler) route(
 }
 
 func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
+	var req bankcard.CardAuthorizeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
 	id, err := strconv.Atoi(c.Params.ByName("id"))
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -101,19 +110,31 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	profile := profiles[0]
 	instrument := instruments[0]
 
-	var req bankcard.CardAuthorizeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
+	err, instrumentApi := plugins.InstrumentApi(instrument, th.loggerFunc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
 		return
 	}
-	// @note: set some variables used in routers and channels due to instrument
-	c.Set("cardAuthorizeRequest", req)
-	c.Set("cardStore", th.cardStore)
-	c.Set("accountStore", th.accountStore)
 
-	err, route := th.route(c, profile, instrument)
+	err, instrumentInstance := instrumentApi.FromRequest(c, req, th.cardStore)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	card, ok := instrumentInstance.(*repository.Card)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "instrumentInstance has wrong type",
+		})
+		return
+	}
+
+	err, route := th.route(c, profile, instrument, card)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -133,7 +154,6 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 
 	_type := "auth"
 	status := "new"
-	i := 1
 	acs := "http://g.g"
 	pareq := "ddfds"
 	md := "fgdfgdf"
@@ -143,7 +163,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		Profile: profile,
 		Account: route.Account,
 		Instrument: instrument,
-		InstrumentId: &i,
+		InstrumentId: card.Id,
 		Amount: &req.Amount,
 		Currency: profile.Currency,
 		AmountConverted: &req.Amount,
@@ -163,7 +183,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	if err := bankApi.Authorize(c, instrument); err != nil {
+	if err := bankApi.Authorize(c, transaction, card); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
 		})

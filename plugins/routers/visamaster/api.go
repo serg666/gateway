@@ -15,12 +15,12 @@ var (
 	Id  = 1
 	Key = "visamaster"
 	Registered = plugins.RegisterRouter(Id, Key, func(
-		settings *repository.RouterSettings,
+		accountStore repository.AccountRepository,
 		logger repository.LoggerFunc,
 	) routers.Router {
 		return &VisaMasterRouter{
-			logger:   logger,
-			settings: settings,
+			logger:       logger,
+			accountStore: accountStore,
 		}
 	})
 )
@@ -31,16 +31,16 @@ type VisaMasterSettings struct {
 }
 
 type VisaMasterRouter struct {
-	logger   repository.LoggerFunc
-	settings *repository.RouterSettings
+	logger       repository.LoggerFunc
+	accountStore repository.AccountRepository
 }
 
 func (vmr *VisaMasterRouter) SutableForInstrument(instrument *repository.Instrument) bool {
 	return *instrument.Id == bankcard.Id
 }
 
-func (vmr *VisaMasterRouter) decodeSettings() (error, *VisaMasterSettings) {
-	jsonbody, err := json.Marshal(vmr.settings)
+func (vmr *VisaMasterRouter) decodeSettings(settings *repository.RouterSettings) (error, *VisaMasterSettings) {
+	jsonbody, err := json.Marshal(settings)
 	if err != nil {
 		return fmt.Errorf("can not marshal route settings: %v", err), nil
 	}
@@ -56,37 +56,24 @@ func (vmr *VisaMasterRouter) decodeSettings() (error, *VisaMasterSettings) {
 	return nil, &vms
 }
 
-func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route) error {
-	err, vms := vmr.decodeSettings()
+func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, instrumentInstance interface{}) error {
+	err, vms := vmr.decodeSettings(route.Settings)
 	if err != nil {
 		return fmt.Errorf("failed to validate router settings: %v", err)
 	}
 
-	err, instrumentApi := plugins.InstrumentApi(route.Instrument, vmr.logger)
-	if err != nil {
-		return fmt.Errorf("failed to get instrumentApi: %v", err)
+	card, ok := instrumentInstance.(*repository.Card)
+	if !ok {
+		return fmt.Errorf("instrumentInstance has wrong type")
 	}
-
-	err, instrument := instrumentApi.FromContext(c)
-	if err != nil {
-		return fmt.Errorf("failed to get instrument from context: %v", err)
-	}
-
-	card := instrument.(*repository.Card)
 	vmr.logger(c).Printf("card: %v", card)
 
-	a, exists := c.Get("accountStore")
-	if !exists {
-		return fmt.Errorf("accountStore not exists in context")
-	}
-	accountStore := a.(repository.AccountRepository)
-
-	err, _, maccs := accountStore.Query(c, repository.NewAccountSpecificationByID(vms.MasterAcc))
+	err, _, maccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vms.MasterAcc))
 	if err != nil {
 		return fmt.Errorf("failed to query acc store: %v", err)
 	}
 
-	err, _, vaccs := accountStore.Query(c, repository.NewAccountSpecificationByID(vms.VisaAcc))
+	err, _, vaccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vms.VisaAcc))
 	if err != nil {
 		return fmt.Errorf("failed to query acc store: %v", err)
 	}

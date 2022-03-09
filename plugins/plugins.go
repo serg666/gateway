@@ -15,7 +15,7 @@ var (
 	PaymentInstruments = make(map[int]*PaymentInstrument)
 )
 
-type RouterFunc func (*repository.RouterSettings, repository.LoggerFunc) routers.Router
+type RouterFunc func (repository.AccountRepository, repository.LoggerFunc) routers.Router
 
 type Router struct {
 	Key    string
@@ -26,13 +26,13 @@ func (r Router) String() string {
 	return fmt.Sprintf("router <%s>", r.Key)
 }
 
-func RouterApi(route *repository.Route, logger repository.LoggerFunc) (error, routers.Router) {
+func RouterApi(route *repository.Route, accountStore repository.AccountRepository, logger repository.LoggerFunc) (error, routers.Router) {
 	if route.Router == nil {
 		return fmt.Errorf("Route ID=<%d> has no router", *route.Id), nil
 	}
 
 	if val, ok := Routers[*route.Router.Id]; ok {
-		api := val.Plugin(route.Settings, logger)
+		api := val.Plugin(accountStore, logger)
 		if api.SutableForInstrument(route.Instrument) {
 			return nil, api
 		}

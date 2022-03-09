@@ -7,7 +7,7 @@ import (
 
 type BankChannel interface {
 	SutableForInstrument(instrument *repository.Instrument) bool
-	Authorize (c *gin.Context, instrument *repository.Instrument) error
+	Authorize (c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error
 	PreAuthorize(c *gin.Context)
 	Confirm(c *gin.Context)
 	Reverse(c *gin.Context)

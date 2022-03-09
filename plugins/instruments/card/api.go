@@ -47,18 +47,16 @@ type BankCard struct {
 	logger repository.LoggerFunc
 }
 
-func (bc *BankCard) FromContext(c *gin.Context) (error, interface{}) {
-	r, exists := c.Get("cardAuthorizeRequest")
-	if !exists {
-		return fmt.Errorf("cardAuthorizeRequest not exists in context"), nil
+func (bc *BankCard) FromRequest(c *gin.Context, request interface{}, instrumentStore interface{}) (error, interface{}) {
+	cardAuthorizeRequest, ok := request.(CardAuthorizeRequest)
+	if !ok {
+		return fmt.Errorf("request has wrong type"), nil
 	}
-	cardAuthorizeRequest := r.(CardAuthorizeRequest)
 
-	s, exists := c.Get("cardStore")
-	if !exists {
-		return fmt.Errorf("cardStore not exists in context"), nil
+	cardStore, ok := instrumentStore.(repository.CardRepository)
+	if !ok {
+		return fmt.Errorf("instrumentStore has wrong type"), nil
 	}
-	cardStore := s.(repository.CardRepository)
 
 	pan := repository.PAN(cardAuthorizeRequest.Card.Pan)
 	cvv := repository.CVV(cardAuthorizeRequest.Card.Cvv)

@@ -31,7 +31,7 @@ func (kbc *KvellBankChannel) SutableForInstrument(instrument *repository.Instrum
 	return *instrument.Id == bankcard.Id
 }
 
-func (kbc *KvellBankChannel) Authorize(c *gin.Context, instrument *repository.Instrument) error {
+func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
 	kbc.logger(c).Print("authorize int")
 	return nil
 }
