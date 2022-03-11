@@ -39,3 +39,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 )
+
+replace github.com/serg666/repository => ../gateway-kvell-repository
