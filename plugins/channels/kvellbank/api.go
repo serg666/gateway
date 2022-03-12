@@ -2,6 +2,7 @@ package kvellbank
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/instruments/card"
 	"github.com/serg666/gateway/plugins/channels"
@@ -12,10 +13,12 @@ var (
 	Id  = 1
 	Key = "kvellbank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
+		cfg     *config.Config,
 		account *repository.Account,
-		logger repository.LoggerFunc,
+		logger  repository.LoggerFunc,
 	) channels.BankChannel {
 		return &KvellBankChannel{
+			cfg:     cfg,
 			logger:  logger,
 			account: account,
 		}
@@ -23,6 +26,7 @@ var (
 )
 
 type KvellBankChannel struct {
+	cfg     *config.Config
 	logger  repository.LoggerFunc
 	account *repository.Account
 }

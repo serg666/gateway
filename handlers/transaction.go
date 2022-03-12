@@ -5,12 +5,14 @@ import (
 	"strconv"
 	"net/http"
 	"github.com/gin-gonic/gin"
+	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/instruments/card"
 	"github.com/serg666/repository"
 )
 
 type transactionHandler struct {
+	cfg              *config.Config
 	loggerFunc       repository.LoggerFunc
 	profileStore     repository.ProfileRepository
 	accountStore     repository.AccountRepository
@@ -142,7 +144,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, bankApi := plugins.BankApi(route, th.loggerFunc)
+	err, bankApi := plugins.BankApi(th.cfg, route, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -208,9 +210,11 @@ func NewTransactionHandler(
 	currencyStore repository.CurrencyRepository,
 	cardStore repository.CardRepository,
 	transactionStore repository.TransactionRepository,
+	cfg *config.Config,
 	loggerFunc repository.LoggerFunc,
 ) *transactionHandler {
 	return &transactionHandler{
+		cfg:              cfg,
 		loggerFunc:       loggerFunc,
 		profileStore:     profileStore,
 		accountStore:     accountStore,

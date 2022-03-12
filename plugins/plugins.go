@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"fmt"
+	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins/routers"
 	"github.com/serg666/gateway/plugins/channels"
 	"github.com/serg666/gateway/plugins/instruments"
@@ -184,7 +185,7 @@ func CheckPaymentInstruments(instrumentStore repository.InstrumentRepository) er
 	return nil
 }
 
-type BankChannelFunc func (*repository.Account, repository.LoggerFunc) channels.BankChannel
+type BankChannelFunc func (*config.Config, *repository.Account, repository.LoggerFunc) channels.BankChannel
 
 type BankChannel struct {
 	Key    string
@@ -196,11 +197,11 @@ func (bc BankChannel) String() string {
 	return fmt.Sprintf("bank channel <%s>", bc.Key)
 }
 
-func BankApi(route *repository.Route, logger repository.LoggerFunc) (error, channels.BankChannel) {
+func BankApi(cfg *config.Config, route *repository.Route, logger repository.LoggerFunc) (error, channels.BankChannel) {
 	cid := *route.Account.Channel.Id
 
 	if val, ok := BankChannels[cid]; ok {
-		api := val.Plugin(route.Account, logger)
+		api := val.Plugin(cfg, route.Account, logger)
 		if api.SutableForInstrument(route.Instrument) {
 			return nil, api
 		}

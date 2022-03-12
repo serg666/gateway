@@ -8,6 +8,9 @@ server:
     idle: 5
 logrus:
   level: debug
+alfabank:
+  ecom:
+    url: https://web.rbsuat.com
 databases:
   default:
     dsn: dbname=kvell user=kvell password=qazwsx host=127.0.0.1 pool_max_conns=10

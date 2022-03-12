@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/durango/go-credit-card"
 	"github.com/go-playground/validator/v10"
+	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/middlewares"
 	"github.com/serg666/gateway/handlers"
 	"github.com/serg666/repository"
@@ -21,6 +22,7 @@ func MakeHandler(
 	currencyStore repository.CurrencyRepository,
 	cardStore repository.CardRepository,
 	transactionStore repository.TransactionRepository,
+	cfg *config.Config,
 	loggerFunc repository.LoggerFunc,
 ) *gin.Engine {
 	routeHandler := handlers.NewRouteHandler(
@@ -46,6 +48,7 @@ func MakeHandler(
 		currencyStore,
 		cardStore,
 		transactionStore,
+		cfg,
 		loggerFunc,
 	)
 
