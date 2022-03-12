@@ -163,12 +163,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	if err := bankApi.Authorize(c, transaction, card); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
+	bankApi.Authorize(c, transaction, card)
 
 	c.JSON(http.StatusOK, transaction)
 }

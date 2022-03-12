@@ -2,6 +2,8 @@ package alfabank
 
 import (
 	"fmt"
+	"bytes"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
@@ -15,37 +17,52 @@ var (
 	Key = "alfabank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
 		cfg     *config.Config,
-		account *repository.Account,
 		logger  repository.LoggerFunc,
 	) channels.BankChannel {
 		return &AlfaBankChannel{
 			cfg:     cfg,
 			logger:  logger,
-			account: account,
 		}
 	})
 )
 
+type AlfaBankSettings struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
 type AlfaBankChannel struct {
-	cfg     *config.Config
-	logger  repository.LoggerFunc
-	account *repository.Account
+	cfg      *config.Config
+	logger   repository.LoggerFunc
+	settings AlfaBankSettings
 }
 
 func (abc *AlfaBankChannel) SutableForInstrument(instrument *repository.Instrument) bool {
 	return *instrument.Id == bankcard.Id
 }
 
-func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
-	card, ok := instrumentInstance.(*repository.Card)
-	if !ok {
-		return fmt.Errorf("instrumentInstance has wrong type")
+func (abc *AlfaBankChannel) DecodeSettings(settings *repository.AccountSettings) error {
+	jsonbody, err := json.Marshal(settings)
+	if err != nil {
+		return fmt.Errorf("can not marshal alfabank account settings: %v", err)
 	}
+
+	d := json.NewDecoder(bytes.NewReader(jsonbody))
+	d.DisallowUnknownFields()
+
+	if err := d.Decode(&abc.settings); err != nil {
+		return fmt.Errorf("can not decode alfabank account settings: %v", err)
+	}
+
+	return nil
+}
+
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) {
+	card := instrumentInstance.(*repository.Card)
 
 	abc.logger(c).Printf("authorize card: %v", card)
 	abc.logger(c).Printf("url: %v", abc.cfg.Alfabank.Ecom.Url)
-
-	return nil
+	abc.logger(c).Printf("settings: %v", abc.settings)
 }
 
 func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context) {

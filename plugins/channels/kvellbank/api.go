@@ -14,13 +14,11 @@ var (
 	Key = "kvellbank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
 		cfg     *config.Config,
-		account *repository.Account,
 		logger  repository.LoggerFunc,
 	) channels.BankChannel {
 		return &KvellBankChannel{
 			cfg:     cfg,
 			logger:  logger,
-			account: account,
 		}
 	})
 )
@@ -28,16 +26,18 @@ var (
 type KvellBankChannel struct {
 	cfg     *config.Config
 	logger  repository.LoggerFunc
-	account *repository.Account
 }
 
 func (kbc *KvellBankChannel) SutableForInstrument(instrument *repository.Instrument) bool {
 	return *instrument.Id == bankcard.Id
 }
 
-func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
-	kbc.logger(c).Print("authorize int")
+func (kbc *KvellBankChannel) DecodeSettings(settings *repository.AccountSettings) error {
 	return nil
+}
+
+func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) {
+	kbc.logger(c).Print("authorize int")
 }
 
 func (kbc *KvellBankChannel) PreAuthorize(c *gin.Context) {
