@@ -185,7 +185,7 @@ func CheckPaymentInstruments(instrumentStore repository.InstrumentRepository) er
 	return nil
 }
 
-type BankChannelFunc func (*config.Config, repository.LoggerFunc) channels.BankChannel
+type BankChannelFunc func (*config.Config, *repository.Route, repository.LoggerFunc) (error, channels.BankChannel)
 
 type BankChannel struct {
 	Key    string
@@ -201,14 +201,9 @@ func BankApi(cfg *config.Config, route *repository.Route, logger repository.Logg
 	cid := *route.Account.Channel.Id
 
 	if val, ok := BankChannels[cid]; ok {
-		api := val.Plugin(cfg, logger)
-
-		if err := api.DecodeSettings(route.Account.Settings); err != nil {
-			return fmt.Errorf("failed to validate bank channel settings: %v", err), nil
-		}
-
-		if !api.SutableForInstrument(route.Instrument) {
-			return fmt.Errorf("%s not sutable for instument %d", val, *route.Instrument.Id), nil
+		err, api := val.Plugin(cfg, route, logger)
+		if err != nil {
+			return fmt.Errorf("failed to initiate bank api: %v", err), nil
 		}
 
 		return nil, api

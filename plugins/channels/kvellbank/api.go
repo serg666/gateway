@@ -1,6 +1,7 @@
 package kvellbank
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
@@ -14,9 +15,14 @@ var (
 	Key = "kvellbank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
 		cfg     *config.Config,
+		route   *repository.Route,
 		logger  repository.LoggerFunc,
-	) channels.BankChannel {
-		return &KvellBankChannel{
+	) (error, channels.BankChannel) {
+		if *route.Instrument.Id != bankcard.Id {
+			return fmt.Errorf("kvellbank channel not sutable for instrument <%d>", *route.Instrument.Id), nil
+		}
+
+		return nil, &KvellBankChannel{
 			cfg:     cfg,
 			logger:  logger,
 		}
@@ -28,16 +34,9 @@ type KvellBankChannel struct {
 	logger  repository.LoggerFunc
 }
 
-func (kbc *KvellBankChannel) SutableForInstrument(instrument *repository.Instrument) bool {
-	return *instrument.Id == bankcard.Id
-}
-
-func (kbc *KvellBankChannel) DecodeSettings(settings *repository.AccountSettings) error {
-	return nil
-}
-
-func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) {
+func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
 	kbc.logger(c).Print("authorize int")
+	return nil
 }
 
 func (kbc *KvellBankChannel) PreAuthorize(c *gin.Context) {

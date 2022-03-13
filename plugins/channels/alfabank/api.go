@@ -17,11 +17,31 @@ var (
 	Key = "alfabank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
 		cfg     *config.Config,
+		route   *repository.Route,
 		logger  repository.LoggerFunc,
-	) channels.BankChannel {
-		return &AlfaBankChannel{
-			cfg:     cfg,
-			logger:  logger,
+	) (error, channels.BankChannel) {
+		if *route.Instrument.Id != bankcard.Id {
+			return fmt.Errorf("alfabank channel not sutable for instrument <%d>", *route.Instrument.Id), nil
+		}
+
+		jsonbody, err := json.Marshal(route.Account.Settings)
+		if err != nil {
+			return fmt.Errorf("can not marshal alfabank account settings: %v", err), nil
+		}
+
+		d := json.NewDecoder(bytes.NewReader(jsonbody))
+		d.DisallowUnknownFields()
+
+		var abs AlfaBankSettings
+
+		if err := d.Decode(&abs); err != nil {
+			return fmt.Errorf("can not decode alfabank account settings: %v", err), nil
+		}
+
+		return nil, &AlfaBankChannel{
+			cfg:      cfg,
+			logger:   logger,
+			settings: &abs,
 		}
 	})
 )
@@ -34,35 +54,17 @@ type AlfaBankSettings struct {
 type AlfaBankChannel struct {
 	cfg      *config.Config
 	logger   repository.LoggerFunc
-	settings AlfaBankSettings
+	settings *AlfaBankSettings
 }
 
-func (abc *AlfaBankChannel) SutableForInstrument(instrument *repository.Instrument) bool {
-	return *instrument.Id == bankcard.Id
-}
-
-func (abc *AlfaBankChannel) DecodeSettings(settings *repository.AccountSettings) error {
-	jsonbody, err := json.Marshal(settings)
-	if err != nil {
-		return fmt.Errorf("can not marshal alfabank account settings: %v", err)
-	}
-
-	d := json.NewDecoder(bytes.NewReader(jsonbody))
-	d.DisallowUnknownFields()
-
-	if err := d.Decode(&abc.settings); err != nil {
-		return fmt.Errorf("can not decode alfabank account settings: %v", err)
-	}
-
-	return nil
-}
-
-func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) {
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
 	card := instrumentInstance.(*repository.Card)
 
 	abc.logger(c).Printf("authorize card: %v", card)
 	abc.logger(c).Printf("url: %v", abc.cfg.Alfabank.Ecom.Url)
 	abc.logger(c).Printf("settings: %v", abc.settings)
+
+	return nil
 }
 
 func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context) {

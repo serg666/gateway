@@ -7,7 +7,7 @@ require (
 	github.com/gin-contrib/requestid v0.0.3
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.1
-	github.com/serg666/repository v0.0.0-20220309113337-ec91f2b868e0
+	github.com/serg666/repository v0.0.0-20220313094407-a2fdc8230f9c
 	github.com/sirupsen/logrus v1.8.1
 	github.com/wk8/go-ordered-map v0.2.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -34,7 +34,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
-	golang.org/x/crypto v0.0.0-20220312131142-6068a2e6cfdc // indirect
+	golang.org/x/crypto v0.0.0-20220313003712-b769efc7c000 // indirect
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
