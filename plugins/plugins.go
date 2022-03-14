@@ -16,7 +16,7 @@ var (
 	PaymentInstruments = make(map[int]*PaymentInstrument)
 )
 
-type RouterFunc func (repository.AccountRepository, repository.LoggerFunc) routers.Router
+type RouterFunc func (*repository.Route, repository.AccountRepository, repository.LoggerFunc) (error, routers.Router)
 
 type Router struct {
 	Key    string
@@ -33,12 +33,12 @@ func RouterApi(route *repository.Route, accountStore repository.AccountRepositor
 	}
 
 	if val, ok := Routers[*route.Router.Id]; ok {
-		api := val.Plugin(accountStore, logger)
-		if api.SutableForInstrument(route.Instrument) {
-			return nil, api
+		err, api := val.Plugin(route, accountStore, logger)
+		if err != nil {
+			return fmt.Errorf("failed to initiate router api: %v", err), nil
 		}
 
-		return fmt.Errorf("%s not sutable for instument %d", val, *route.Instrument.Id), nil
+		return nil, api
 	}
 
 	return fmt.Errorf("Router with ID=%v not found", *route.Router.Id), nil

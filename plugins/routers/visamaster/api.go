@@ -15,12 +15,32 @@ var (
 	Id  = 1
 	Key = "visamaster"
 	Registered = plugins.RegisterRouter(Id, Key, func(
+		route        *repository.Route,
 		accountStore repository.AccountRepository,
-		logger repository.LoggerFunc,
-	) routers.Router {
-		return &VisaMasterRouter{
+		logger       repository.LoggerFunc,
+	) (error, routers.Router) {
+		if *route.Instrument.Id != bankcard.Id {
+			return fmt.Errorf("visamaster router not sutable for instrument <%d>", *route.Instrument.Id), nil
+		}
+
+		jsonbody, err := json.Marshal(route.Settings)
+		if err != nil {
+			return fmt.Errorf("can not marshal route settings: %v", err), nil
+		}
+
+		d := json.NewDecoder(bytes.NewReader(jsonbody))
+		d.DisallowUnknownFields()
+
+		var vms VisaMasterSettings
+
+		if err := d.Decode(&vms); err != nil {
+			return fmt.Errorf("can not decode route settings: %v", err), nil
+		}
+
+		return nil, &VisaMasterRouter{
 			logger:       logger,
 			accountStore: accountStore,
+			settings:     &vms,
 		}
 	})
 )
@@ -33,57 +53,32 @@ type VisaMasterSettings struct {
 type VisaMasterRouter struct {
 	logger       repository.LoggerFunc
 	accountStore repository.AccountRepository
-}
-
-func (vmr *VisaMasterRouter) SutableForInstrument(instrument *repository.Instrument) bool {
-	return *instrument.Id == bankcard.Id
-}
-
-func (vmr *VisaMasterRouter) decodeSettings(settings *repository.RouterSettings) (error, *VisaMasterSettings) {
-	jsonbody, err := json.Marshal(settings)
-	if err != nil {
-		return fmt.Errorf("can not marshal route settings: %v", err), nil
-	}
-
-	d := json.NewDecoder(bytes.NewReader(jsonbody))
-	d.DisallowUnknownFields()
-
-	var vms VisaMasterSettings
-	if err := d.Decode(&vms); err != nil {
-		return fmt.Errorf("can not decode route settings: %v", err), nil
-	}
-
-	return nil, &vms
+	settings     *VisaMasterSettings
 }
 
 func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, instrumentInstance interface{}) error {
-	err, vms := vmr.decodeSettings(route.Settings)
-	if err != nil {
-		return fmt.Errorf("failed to validate router settings: %v", err)
-	}
-
 	card, ok := instrumentInstance.(*repository.Card)
 	if !ok {
 		return fmt.Errorf("instrumentInstance has wrong type")
 	}
 	vmr.logger(c).Printf("visamaster routing card: %v", card)
 
-	err, _, maccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vms.MasterAcc))
+	err, _, maccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vmr.settings.MasterAcc))
 	if err != nil {
 		return fmt.Errorf("failed to query acc store: %v", err)
 	}
 
-	err, _, vaccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vms.VisaAcc))
+	err, _, vaccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vmr.settings.VisaAcc))
 	if err != nil {
 		return fmt.Errorf("failed to query acc store: %v", err)
 	}
 
 	if len(maccs) == 0 {
-		return fmt.Errorf("mastercard account %d not found", vms.MasterAcc)
+		return fmt.Errorf("mastercard account %d not found", vmr.settings.MasterAcc)
 	}
 
 	if len(vaccs) == 0 {
-		return fmt.Errorf("visa account %d not found", vms.MasterAcc)
+		return fmt.Errorf("visa account %d not found", vmr.settings.MasterAcc)
 	}
 
 	macc := maccs[0]
