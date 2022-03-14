@@ -7,7 +7,7 @@ require (
 	github.com/gin-contrib/requestid v0.0.3
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.1
-	github.com/serg666/repository v0.0.0-20220313094407-a2fdc8230f9c
+	github.com/serg666/repository v0.0.0-20220313210847-919ff3c94c7c
 	github.com/sirupsen/logrus v1.8.1
 	github.com/wk8/go-ordered-map v0.2.0
 	gopkg.in/yaml.v2 v2.4.0

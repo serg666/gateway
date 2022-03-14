@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/wk8/go-ordered-map"
 	"github.com/serg666/repository"
+	"github.com/serg666/gateway/client"
 	"github.com/serg666/gateway/config"
 
 	"github.com/serg666/gateway/plugins"
@@ -115,6 +116,8 @@ func main() {
 		cfg,
 		loggerFunc,
     )
+
+	client.Client = cfg.HttpClient()
 
 	// Run the server
 	cfg.RunServer(handler, loggerFunc)

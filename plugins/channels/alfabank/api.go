@@ -3,8 +3,15 @@ package alfabank
 import (
 	"fmt"
 	"bytes"
+	"strconv"
+	"strings"
+	"errors"
+	"net/url"
+	"net/http"
+	"io/ioutil"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/serg666/gateway/client"
 	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/instruments/card"
@@ -16,9 +23,9 @@ var (
 	Id  = 2
 	Key = "alfabank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
-		cfg     *config.Config,
-		route   *repository.Route,
-		logger  repository.LoggerFunc,
+		cfg    *config.Config,
+		route  *repository.Route,
+		logger repository.LoggerFunc,
 	) (error, channels.BankChannel) {
 		if *route.Instrument.Id != bankcard.Id {
 			return fmt.Errorf("alfabank channel not sutable for instrument <%d>", *route.Instrument.Id), nil
@@ -57,12 +64,114 @@ type AlfaBankChannel struct {
 	settings *AlfaBankSettings
 }
 
+func (abc *AlfaBankChannel) makeRequest(c *gin.Context, method string, url string, data url.Values) (error, *map[string]interface{}) {
+	data.Set("userName", abc.settings.Login)
+	data.Set("password", abc.settings.Password)
+
+	r, err := http.NewRequest(method, fmt.Sprintf("%s/%s", abc.cfg.Alfabank.Ecom.Url, url), strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("can not make new request: %v", err), nil
+	}
+
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	res, err := client.Client.Do(r)
+	if err != nil {
+		return fmt.Errorf("can not do request: %v", err), nil
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("can not read body: %v", err), nil
+	}
+
+	abc.logger(c).Printf("response body: %s", string(body))
+
+	var jsonResp map[string]interface{}
+	if err := json.Unmarshal(body, &jsonResp); err != nil {
+		return fmt.Errorf("can not unmarshal body: %v", err), nil
+	}
+
+	return nil, &jsonResp
+}
+
+func (abc *AlfaBankChannel) parseError(c *gin.Context, response *map[string]interface{}) (*string, *string) {
+	errCode := "-1"
+	errMess := "unknown error"
+
+	if errorCode, ok := (*response)["errorCode"]; ok {
+		switch rc := errorCode.(type) {
+		case float64:
+			errCode = strconv.FormatFloat(rc, 'f', -1, 32)
+		case int:
+			errCode = strconv.Itoa(rc)
+		case string:
+			errCode = rc
+		default:
+			abc.logger(c).Printf("rc type: %v (%T)", rc, rc)
+		}
+	}
+
+	if errorMessage, ok := (*response)["errorMessage"]; ok {
+		if mess, ok := errorMessage.(string); ok {
+			errMess = mess
+		}
+	}
+
+	return &errCode, &errMess
+}
+
 func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
 	card := instrumentInstance.(*repository.Card)
 
 	abc.logger(c).Printf("authorize card: %v", card)
-	abc.logger(c).Printf("url: %v", abc.cfg.Alfabank.Ecom.Url)
-	abc.logger(c).Printf("settings: %v", abc.settings)
+
+	data := url.Values{}
+	data.Set("orderNumber", strconv.Itoa(*transaction.Id))
+	data.Set("currency", strconv.Itoa(*transaction.CurrencyConverted.NumericCode))
+	data.Set("amount", strconv.Itoa(int(*transaction.AmountConverted)))
+	data.Set("returnUrl", "1")
+
+	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/register.do", data)
+	if err != nil {
+		return fmt.Errorf("can not make register order request: %v", err)
+	}
+
+	if orderId, ok := (*jsonResp)["orderId"]; ok {
+		if remoteId, ok := orderId.(string); ok {
+			transaction.RemoteId = &remoteId
+
+			data := url.Values{}
+			data.Set("MDORDER", remoteId)
+			data.Set("$PAN", string(*card.PAN))
+			data.Set("$CVC", string(*card.CVV))
+			data.Set("YYYY", strconv.Itoa(card.ExpDate.Year()))
+			data.Set("MM", fmt.Sprintf("%02d", int(card.ExpDate.Month())))
+			data.Set("TEXT", *card.Holder)
+
+			err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data)
+			if err != nil {
+				return fmt.Errorf("can not make payment order request: %v", err)
+			}
+
+			rc, mess := abc.parseError(c, jsonResp)
+			transaction.ResponseCode = rc
+			if *rc != "0" {
+				return errors.New(*mess)
+			}
+			// @note: success request
+			// @todo: process tranaction
+		} else {
+			return errors.New("orderId has wrong type")
+		}
+	} else {
+		rc, mess := abc.parseError(c, jsonResp)
+
+		transaction.ResponseCode = rc
+		return errors.New(*mess)
+	}
 
 	return nil
 }

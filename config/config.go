@@ -7,6 +7,7 @@ import (
 	"flag"
 	"syscall"
 	"context"
+	"net"
 	"net/http"
 	"os/signal"
 	"gopkg.in/yaml.v2"
@@ -18,6 +19,18 @@ import (
 
 // Config struct for webapp config
 type Config struct {
+	Client struct {
+		Timeout struct {
+			// Read specifies a time limit for requests made by this
+			// Client. The timeout includes connection time, any
+			// redirects, and reading the response body.
+			Read time.Duration `yaml:"read"`
+
+			// Connect is the maximum amount of time a dial will wait for
+			// a connect to complete.
+			Connect time.Duration `yaml:"connect"`
+		} `yaml:"timeout"`
+	} `yaml:"client"`
 	Server struct {
 		// Host is the local machine IP Address to bind the HTTP Server to
 		Host string `yaml:"host"`
@@ -75,6 +88,18 @@ func (cfg *Config) LogRusLogger(c interface{}) logrus.FieldLogger {
 	return logger.WithFields(logrus.Fields{
 		"request_id": rid,
 	})
+}
+
+// Will return the HTTP Client
+func (cfg *Config) HttpClient() *http.Client {
+	return &http.Client{
+		Timeout: cfg.Client.Timeout.Read * time.Second,
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: cfg.Client.Timeout.Connect * time.Second,
+			}).Dial,
+		},
+	}
 }
 
 // Run will run the HTTP Server

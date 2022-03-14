@@ -63,7 +63,7 @@ func (th *transactionHandler) route(
 func (th *transactionHandler) decline(c *gin.Context, transaction *repository.Transaction, msg string) {
 	txStatus := "declined"
 	transaction.Status = &txStatus
-	transaction.ResponseCode = &msg
+	transaction.ErrorMessage = &msg
 }
 
 func (th *transactionHandler) success(c *gin.Context, transaction *repository.Transaction) {
