@@ -95,9 +95,10 @@ func (cfg *Config) HttpClient() *http.Client {
 	return &http.Client{
 		Timeout: cfg.Client.Timeout.Read * time.Second,
 		Transport: &http.Transport{
-			Dial: (&net.Dialer{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
 				Timeout: cfg.Client.Timeout.Connect * time.Second,
-			}).Dial,
+			}).DialContext,
 		},
 	}
 }
