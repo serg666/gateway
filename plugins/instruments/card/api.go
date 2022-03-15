@@ -59,7 +59,6 @@ func (bc *BankCard) FromRequest(c *gin.Context, request interface{}, instrumentS
 	}
 
 	pan := repository.PAN(cardAuthorizeRequest.Card.Pan)
-	cvv := repository.CVV(cardAuthorizeRequest.Card.Cvv)
 
 	err, _, cards := cardStore.Query(c, repository.NewCardSpecificationByPAN(pan))
 	if err != nil {
@@ -72,7 +71,6 @@ func (bc *BankCard) FromRequest(c *gin.Context, request interface{}, instrumentS
 
 	card := &repository.Card{
 		PAN:     &pan,
-		CVV:     &cvv,
 		ExpDate: &cardAuthorizeRequest.Card.ExpDate.Time,
 		Holder:  &cardAuthorizeRequest.Card.Holder,
 	}

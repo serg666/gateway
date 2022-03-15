@@ -14,27 +14,30 @@ var (
 	Id  = 1
 	Key = "kvellbank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
-		cfg     *config.Config,
-		route   *repository.Route,
-		logger  repository.LoggerFunc,
+		cfg             *config.Config,
+		route           *repository.Route,
+		instrumentStore interface{},
+		logger          repository.LoggerFunc,
 	) (error, channels.BankChannel) {
 		if *route.Instrument.Id != bankcard.Id {
 			return fmt.Errorf("kvellbank channel not sutable for instrument <%d>", *route.Instrument.Id), nil
 		}
 
 		return nil, &KvellBankChannel{
-			cfg:     cfg,
-			logger:  logger,
+			cfg:             cfg,
+			instrumentStore: instrumentStore,
+			logger:          logger,
 		}
 	})
 )
 
 type KvellBankChannel struct {
-	cfg     *config.Config
-	logger  repository.LoggerFunc
+	cfg             *config.Config
+	instrumentStore interface{}
+	logger          repository.LoggerFunc
 }
 
-func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
+func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
 	kbc.logger(c).Print("authorize int")
 	return nil
 }

@@ -16,7 +16,7 @@ var (
 	PaymentInstruments = make(map[int]*PaymentInstrument)
 )
 
-type RouterFunc func (*repository.Route, repository.AccountRepository, repository.LoggerFunc) (error, routers.Router)
+type RouterFunc func (*repository.Route, repository.AccountRepository, interface{}, repository.LoggerFunc) (error, routers.Router)
 
 type Router struct {
 	Key    string
@@ -27,13 +27,18 @@ func (r Router) String() string {
 	return fmt.Sprintf("router <%s>", r.Key)
 }
 
-func RouterApi(route *repository.Route, accountStore repository.AccountRepository, logger repository.LoggerFunc) (error, routers.Router) {
+func RouterApi(
+	route *repository.Route,
+	accountStore repository.AccountRepository,
+	instrumentStore interface{},
+	logger repository.LoggerFunc,
+) (error, routers.Router) {
 	if route.Router == nil {
 		return fmt.Errorf("Route ID=<%d> has no router", *route.Id), nil
 	}
 
 	if val, ok := Routers[*route.Router.Id]; ok {
-		err, api := val.Plugin(route, accountStore, logger)
+		err, api := val.Plugin(route, accountStore, instrumentStore, logger)
 		if err != nil {
 			return fmt.Errorf("failed to initiate router api: %v", err), nil
 		}
@@ -185,7 +190,7 @@ func CheckPaymentInstruments(instrumentStore repository.InstrumentRepository) er
 	return nil
 }
 
-type BankChannelFunc func (*config.Config, *repository.Route, repository.LoggerFunc) (error, channels.BankChannel)
+type BankChannelFunc func (*config.Config, *repository.Route, interface{}, repository.LoggerFunc) (error, channels.BankChannel)
 
 type BankChannel struct {
 	Key    string
@@ -197,11 +202,16 @@ func (bc BankChannel) String() string {
 	return fmt.Sprintf("bank channel <%s>", bc.Key)
 }
 
-func BankApi(cfg *config.Config, route *repository.Route, logger repository.LoggerFunc) (error, channels.BankChannel) {
+func BankApi(
+	cfg *config.Config,
+	route *repository.Route,
+	instrumentStore interface{},
+	logger repository.LoggerFunc,
+) (error, channels.BankChannel) {
 	cid := *route.Account.Channel.Id
 
 	if val, ok := BankChannels[cid]; ok {
-		err, api := val.Plugin(cfg, route, logger)
+		err, api := val.Plugin(cfg, route, instrumentStore, logger)
 		if err != nil {
 			return fmt.Errorf("failed to initiate bank api: %v", err), nil
 		}

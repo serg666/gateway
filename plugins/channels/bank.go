@@ -6,7 +6,7 @@ import (
 )
 
 type BankChannel interface {
-	Authorize (c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error
+	Authorize (c *gin.Context, transaction *repository.Transaction, request interface{}) error
 	PreAuthorize(c *gin.Context)
 	Confirm(c *gin.Context)
 	Reverse(c *gin.Context)

@@ -15,9 +15,10 @@ var (
 	Id  = 1
 	Key = "visamaster"
 	Registered = plugins.RegisterRouter(Id, Key, func(
-		route        *repository.Route,
-		accountStore repository.AccountRepository,
-		logger       repository.LoggerFunc,
+		route           *repository.Route,
+		accountStore    repository.AccountRepository,
+		instrumentStore interface{},
+		logger          repository.LoggerFunc,
 	) (error, routers.Router) {
 		if *route.Instrument.Id != bankcard.Id {
 			return fmt.Errorf("visamaster router not sutable for instrument <%d>", *route.Instrument.Id), nil
@@ -38,9 +39,10 @@ var (
 		}
 
 		return nil, &VisaMasterRouter{
-			logger:       logger,
-			accountStore: accountStore,
-			settings:     &vms,
+			logger:          logger,
+			accountStore:    accountStore,
+			instrumentStore: instrumentStore,
+			settings:        &vms,
 		}
 	})
 )
@@ -51,17 +53,37 @@ type VisaMasterSettings struct {
 }
 
 type VisaMasterRouter struct {
-	logger       repository.LoggerFunc
-	accountStore repository.AccountRepository
-	settings     *VisaMasterSettings
+	logger          repository.LoggerFunc
+	accountStore    repository.AccountRepository
+	instrumentStore interface{}
+	settings        *VisaMasterSettings
 }
 
-func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, instrumentInstance interface{}) error {
+func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, request interface{}) error {
+	req, ok := request.(bankcard.CardAuthorizeRequest)
+	if !ok {
+		return fmt.Errorf("request has wrong type")
+	}
+
+	cardStore, ok := vmr.instrumentStore.(repository.CardRepository)
+	if !ok {
+		return fmt.Errorf("instrumentStore has wrong type")
+	}
+
+	err, instrumentApi := plugins.InstrumentApi(route.Instrument, vmr.logger)
+	if err != nil {
+		return fmt.Errorf("failed to get instrument api: %v", err)
+	}
+
+	err, instrumentInstance := instrumentApi.FromRequest(c, req, cardStore)
+	if err != nil {
+		return fmt.Errorf("failed to get instrumentInstance: %v", err)
+	}
+
 	card, ok := instrumentInstance.(*repository.Card)
 	if !ok {
 		return fmt.Errorf("instrumentInstance has wrong type")
 	}
-	vmr.logger(c).Printf("visamaster routing card: %v", card)
 
 	err, _, maccs := vmr.accountStore.Query(c, repository.NewAccountSpecificationByID(vmr.settings.MasterAcc))
 	if err != nil {
@@ -80,6 +102,8 @@ func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, inst
 	if len(vaccs) == 0 {
 		return fmt.Errorf("visa account %d not found", vmr.settings.MasterAcc)
 	}
+
+	vmr.logger(c).Printf("visamaster routing card: %v", card)
 
 	macc := maccs[0]
 	vacc := vaccs[0]

@@ -6,5 +6,5 @@ import (
 )
 
 type Router interface {
-	Route(c *gin.Context, route *repository.Route, instrumentInstance interface{}) error
+	Route(c *gin.Context, route *repository.Route, request interface{}) error
 }

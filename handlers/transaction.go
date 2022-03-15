@@ -29,7 +29,8 @@ func (th *transactionHandler) route(
 	c *gin.Context,
 	profile *repository.Profile,
 	instrument *repository.Instrument,
-	instrumentInstance interface{},
+	instrumentStore interface{},
+	request interface{},
 ) (error, *repository.Route) {
 	err, _, routes := th.routeStore.Query(c, repository.NewRouteSpecificationByProfileAndInstrument(
 		profile,
@@ -47,12 +48,12 @@ func (th *transactionHandler) route(
 	route := routes[0]
 
 	if route.Router != nil {
-		err, routerApi := plugins.RouterApi(route, th.accountStore, th.loggerFunc)
+		err, routerApi := plugins.RouterApi(route, th.accountStore, instrumentStore, th.loggerFunc)
 		if err != nil {
 			return fmt.Errorf("Can not get router: %v", err), nil
 		}
 
-		if err := routerApi.Route(c, route, instrumentInstance); err != nil {
+		if err := routerApi.Route(c, route, request); err != nil {
 			return fmt.Errorf("Can not get route: %v", err), nil
 		}
 	}
@@ -175,7 +176,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, route := th.route(c, profile, instrument, card)
+	err, route := th.route(c, profile, instrument, th.cardStore, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -183,7 +184,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, bankApi := plugins.BankApi(th.cfg, route, th.loggerFunc)
+	err, bankApi := plugins.BankApi(th.cfg, route, th.cardStore, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -202,7 +203,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	if err := bankApi.Authorize(c, transaction, card); err != nil {
+	if err := bankApi.Authorize(c, transaction, req); err != nil {
 		th.decline(c, transaction, err.Error())
 	} else {
 		th.success(c, transaction)

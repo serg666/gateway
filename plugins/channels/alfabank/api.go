@@ -23,9 +23,10 @@ var (
 	Id  = 2
 	Key = "alfabank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
-		cfg    *config.Config,
-		route  *repository.Route,
-		logger repository.LoggerFunc,
+		cfg             *config.Config,
+		route           *repository.Route,
+		instrumentStore interface{},
+		logger          repository.LoggerFunc,
 	) (error, channels.BankChannel) {
 		if *route.Instrument.Id != bankcard.Id {
 			return fmt.Errorf("alfabank channel not sutable for instrument <%d>", *route.Instrument.Id), nil
@@ -46,9 +47,10 @@ var (
 		}
 
 		return nil, &AlfaBankChannel{
-			cfg:      cfg,
-			logger:   logger,
-			settings: &abs,
+			cfg:             cfg,
+			logger:          logger,
+			instrumentStore: instrumentStore,
+			settings:        &abs,
 		}
 	})
 )
@@ -59,9 +61,10 @@ type AlfaBankSettings struct {
 }
 
 type AlfaBankChannel struct {
-	cfg      *config.Config
-	logger   repository.LoggerFunc
-	settings *AlfaBankSettings
+	cfg             *config.Config
+	logger          repository.LoggerFunc
+	instrumentStore interface{}
+	settings        *AlfaBankSettings
 }
 
 func (abc *AlfaBankChannel) makeRequest(c *gin.Context, method string, url string, data url.Values) (error, *map[string]interface{}) {
@@ -123,10 +126,11 @@ func (abc *AlfaBankChannel) parseError(c *gin.Context, response *map[string]inte
 	return &errCode, &errMess
 }
 
-func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, instrumentInstance interface{}) error {
-	card := instrumentInstance.(*repository.Card)
-
-	abc.logger(c).Printf("authorize card: %v", card)
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+	req, ok := request.(bankcard.CardAuthorizeRequest)
+	if !ok {
+		return fmt.Errorf("request has wrong type")
+	}
 
 	data := url.Values{}
 	data.Set("orderNumber", strconv.Itoa(*transaction.Id))
@@ -145,11 +149,11 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 
 			data := url.Values{}
 			data.Set("MDORDER", remoteId)
-			data.Set("$PAN", string(*card.PAN))
-			data.Set("$CVC", string(*card.CVV))
-			data.Set("YYYY", strconv.Itoa(card.ExpDate.Year()))
-			data.Set("MM", fmt.Sprintf("%02d", int(card.ExpDate.Month())))
-			data.Set("TEXT", *card.Holder)
+			data.Set("$PAN", req.Card.Pan)
+			data.Set("$CVC", req.Card.Cvv)
+			data.Set("YYYY", strconv.Itoa(req.Card.ExpDate.Year()))
+			data.Set("MM", fmt.Sprintf("%02d", int(req.Card.ExpDate.Month())))
+			data.Set("TEXT", req.Card.Holder)
 
 			err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data)
 			if err != nil {
@@ -162,7 +166,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 				return errors.New(*mess)
 			}
 			// @note: success request
-			// @todo: process tranaction
+			// @todo: process transaction
 		} else {
 			return errors.New("orderId has wrong type")
 		}
