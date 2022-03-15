@@ -60,17 +60,12 @@ type VisaMasterRouter struct {
 }
 
 func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, request interface{}) error {
-	req, ok := request.(bankcard.CardAuthorizeRequest)
-	if !ok {
-		return fmt.Errorf("request has wrong type")
-	}
-
 	err, instrumentApi := plugins.InstrumentApi(route.Instrument, vmr.instrumentStore, vmr.logger)
 	if err != nil {
 		return fmt.Errorf("failed to get instrument api: %v", err)
 	}
 
-	err, instrumentInstance := instrumentApi.FromRequest(c, req)
+	err, instrumentInstance := instrumentApi.FromRequest(c, request)
 	if err != nil {
 		return fmt.Errorf("failed to get instrumentInstance: %v", err)
 	}
