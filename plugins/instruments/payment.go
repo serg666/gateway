@@ -5,5 +5,5 @@ import (
 )
 
 type PaymentInstrument interface {
-	FromRequest(c *gin.Context, request interface{}, instrumentStore interface{}) (error, interface{})
+	FromRequest(c *gin.Context, request interface{}) (error, interface{})
 }

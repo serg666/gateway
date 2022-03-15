@@ -13,9 +13,13 @@ import (
 var (
 	Id  = 1
 	Key = "card"
-	Registered = plugins.RegisterPaymentInstrument(Id, Key, func(logger repository.LoggerFunc) instruments.PaymentInstrument {
+	Registered = plugins.RegisterPaymentInstrument(Id, Key, func(
+		instrumentStore interface{},
+		logger repository.LoggerFunc,
+	) instruments.PaymentInstrument {
 		return &BankCard{
-			logger: logger,
+			instrumentStore: instrumentStore,
+			logger:          logger,
 		}
 	})
 )
@@ -44,16 +48,17 @@ type CardAuthorizeRequest struct {
 }
 
 type BankCard struct {
-	logger repository.LoggerFunc
+	instrumentStore interface{}
+	logger          repository.LoggerFunc
 }
 
-func (bc *BankCard) FromRequest(c *gin.Context, request interface{}, instrumentStore interface{}) (error, interface{}) {
+func (bc *BankCard) FromRequest(c *gin.Context, request interface{}) (error, interface{}) {
 	cardAuthorizeRequest, ok := request.(CardAuthorizeRequest)
 	if !ok {
 		return fmt.Errorf("request has wrong type"), nil
 	}
 
-	cardStore, ok := instrumentStore.(repository.CardRepository)
+	cardStore, ok := bc.instrumentStore.(repository.CardRepository)
 	if !ok {
 		return fmt.Errorf("instrumentStore has wrong type"), nil
 	}

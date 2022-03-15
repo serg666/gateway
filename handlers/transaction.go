@@ -152,7 +152,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	profile := profiles[0]
 	instrument := instruments[0]
 
-	err, instrumentApi := plugins.InstrumentApi(instrument, th.loggerFunc)
+	err, instrumentApi := plugins.InstrumentApi(instrument, th.cardStore, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
@@ -160,7 +160,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, instrumentInstance := instrumentApi.FromRequest(c, req, th.cardStore)
+	err, instrumentInstance := instrumentApi.FromRequest(c, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),

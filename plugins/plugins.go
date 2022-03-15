@@ -110,7 +110,7 @@ func CheckRouters(routerStore repository.RouterRepository) error {
 	return nil
 }
 
-type PaymentInstrumentFunc func (repository.LoggerFunc) instruments.PaymentInstrument
+type PaymentInstrumentFunc func (interface{}, repository.LoggerFunc) instruments.PaymentInstrument
 
 type PaymentInstrument struct {
 	Key    string
@@ -121,9 +121,13 @@ func (pi PaymentInstrument) String() string {
 	return fmt.Sprintf("payment instrument <%s>", pi.Key)
 }
 
-func InstrumentApi(instrument *repository.Instrument, logger repository.LoggerFunc) (error, instruments.PaymentInstrument) {
+func InstrumentApi(
+	instrument *repository.Instrument,
+	instrumentStore interface{},
+	logger repository.LoggerFunc,
+) (error, instruments.PaymentInstrument) {
 	if val, ok := PaymentInstruments[*instrument.Id]; ok {
-		return nil, val.Plugin(logger)
+		return nil, val.Plugin(instrumentStore, logger)
 	}
 
 	return fmt.Errorf("Instrument with ID=%v not found", *instrument.Id), nil
