@@ -16,8 +16,10 @@ var (
 	Registered = plugins.RegisterPaymentInstrument(Id, Key, func(
 		instrumentStore interface{},
 		logger repository.LoggerFunc,
+		requesterFunc plugins.InstrumentRequesterFunc,
 	) instruments.PaymentInstrument {
 		return &BankCard{
+			requesterFunc:   requesterFunc,
 			instrumentStore: instrumentStore,
 			logger:          logger,
 		}
@@ -41,21 +43,21 @@ type Card struct {
 	Holder  string  `json:"holder" binding:"required"`
 }
 
-type CardAuthorizeRequest struct {
-	OrderId string `json:"order_id" binding:"required"`
-	Amount  uint   `json:"amount" binding:"required,min=1"`
-	Card    Card   `json:"card" binding:"required"`
-}
-
 type BankCard struct {
+	requesterFunc   plugins.InstrumentRequesterFunc
 	instrumentStore interface{}
 	logger          repository.LoggerFunc
 }
 
 func (bc *BankCard) FromRequest(c *gin.Context, request interface{}) (error, interface{}) {
-	cardAuthorizeRequest, ok := request.(CardAuthorizeRequest)
+	err, bankCardRequest := bc.requesterFunc(request)
+	if err != nil {
+		return fmt.Errorf("can not get bank card request: %v"), nil
+	}
+
+	bankCardReq, ok := bankCardRequest.(Card)
 	if !ok {
-		return fmt.Errorf("request has wrong type"), nil
+		return fmt.Errorf("bank card request has wrong type"), nil
 	}
 
 	cardStore, ok := bc.instrumentStore.(repository.CardRepository)
@@ -63,7 +65,7 @@ func (bc *BankCard) FromRequest(c *gin.Context, request interface{}) (error, int
 		return fmt.Errorf("instrumentStore has wrong type"), nil
 	}
 
-	pan := repository.PAN(cardAuthorizeRequest.Card.Pan)
+	pan := repository.PAN(bankCardReq.Pan)
 
 	err, _, cards := cardStore.Query(c, repository.NewCardSpecificationByPAN(pan))
 	if err != nil {
@@ -76,8 +78,8 @@ func (bc *BankCard) FromRequest(c *gin.Context, request interface{}) (error, int
 
 	card := &repository.Card{
 		PAN:     &pan,
-		ExpDate: &cardAuthorizeRequest.Card.ExpDate.Time,
-		Holder:  &cardAuthorizeRequest.Card.Holder,
+		ExpDate: &bankCardReq.ExpDate.Time,
+		Holder:  &bankCardReq.Holder,
 	}
 
 	if err := cardStore.Add(c, card); err != nil {

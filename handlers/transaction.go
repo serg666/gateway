@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
-	"github.com/serg666/gateway/plugins/instruments/card"
+	"github.com/serg666/gateway/validators"
 	"github.com/serg666/repository"
 )
 
@@ -101,7 +101,7 @@ func (th *transactionHandler) new(
 }
 
 func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
-	var req bankcard.CardAuthorizeRequest
+	var req validators.CardAuthorizeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -152,7 +152,12 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	profile := profiles[0]
 	instrument := instruments[0]
 
-	err, instrumentApi := plugins.InstrumentApi(instrument, th.cardStore, th.loggerFunc)
+	err, instrumentApi := plugins.InstrumentApi(
+		instrument,
+		th.cardStore,
+		th.loggerFunc,
+		validators.CardAuthorizationInstrumentRequester,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),

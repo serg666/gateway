@@ -110,7 +110,8 @@ func CheckRouters(routerStore repository.RouterRepository) error {
 	return nil
 }
 
-type PaymentInstrumentFunc func (interface{}, repository.LoggerFunc) instruments.PaymentInstrument
+type InstrumentRequesterFunc func (interface{}) (error, interface{})
+type PaymentInstrumentFunc func (interface{}, repository.LoggerFunc, InstrumentRequesterFunc) instruments.PaymentInstrument
 
 type PaymentInstrument struct {
 	Key    string
@@ -125,9 +126,10 @@ func InstrumentApi(
 	instrument *repository.Instrument,
 	instrumentStore interface{},
 	logger repository.LoggerFunc,
+	requesterFunc InstrumentRequesterFunc,
 ) (error, instruments.PaymentInstrument) {
 	if val, ok := PaymentInstruments[*instrument.Id]; ok {
-		return nil, val.Plugin(instrumentStore, logger)
+		return nil, val.Plugin(instrumentStore, logger, requesterFunc)
 	}
 
 	return fmt.Errorf("Instrument with ID=%v not found", *instrument.Id), nil

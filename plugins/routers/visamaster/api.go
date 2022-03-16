@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/serg666/gateway/validators"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/routers"
 	"github.com/serg666/gateway/plugins/instruments/card"
@@ -60,7 +61,12 @@ type VisaMasterRouter struct {
 }
 
 func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, request interface{}) error {
-	err, instrumentApi := plugins.InstrumentApi(route.Instrument, vmr.instrumentStore, vmr.logger)
+	err, instrumentApi := plugins.InstrumentApi(
+		route.Instrument,
+		vmr.instrumentStore,
+		vmr.logger,
+		validators.CardAuthorizationInstrumentRequester,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to get instrument api: %v", err)
 	}

@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/serg666/gateway/validators"
 	"github.com/serg666/gateway/client"
 	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
@@ -127,7 +128,7 @@ func (abc *AlfaBankChannel) parseError(c *gin.Context, response *map[string]inte
 }
 
 func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
-	req, ok := request.(bankcard.CardAuthorizeRequest)
+	req, ok := request.(validators.CardAuthorizeRequest)
 	if !ok {
 		return fmt.Errorf("request has wrong type")
 	}
