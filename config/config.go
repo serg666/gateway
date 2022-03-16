@@ -99,6 +99,10 @@ func (cfg *Config) HttpClient() *http.Client {
 			DialContext: (&net.Dialer{
 				Timeout: cfg.Client.Timeout.Connect * time.Second,
 			}).DialContext,
+			ForceAttemptHTTP2: true,
+			IdleConnTimeout: 90 * time.Second,
+			TLSHandshakeTimeout: 10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
 }
