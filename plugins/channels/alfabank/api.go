@@ -495,6 +495,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 						// to make request after hidden frame has been loaded
 					} else {
 						abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data)
+						// @todo: parse acs and creq here
 						abc.updateTransaction(c, transaction)
 					}
 				} else {
