@@ -6,9 +6,9 @@ server:
   host: 127.0.0.1
   port: 8080
   timeout:
-    server: 30
-    read: 15
-    write: 10
+    server: 180
+    read: 180
+    write: 180
     idle: 5
 logrus:
   level: debug

@@ -61,45 +61,6 @@ func (th *transactionHandler) route(
 	return nil, route
 }
 
-func (th *transactionHandler) decline(c *gin.Context, transaction *repository.Transaction, msg string) {
-	txStatus := "declined"
-	transaction.Status = &txStatus
-	transaction.ErrorMessage = &msg
-}
-
-func (th *transactionHandler) success(c *gin.Context, transaction *repository.Transaction) {
-	txStatus := "success"
-	transaction.Status = &txStatus
-}
-
-func (th *transactionHandler) new(
-	c *gin.Context,
-	txType string,
-	orderId *string,
-	profile *repository.Profile,
-	account *repository.Account,
-	instrument *repository.Instrument,
-	instrumentId *int,
-	amount *uint,
-	reference *repository.Transaction,
-) *repository.Transaction {
-	txStatus := "new"
-	return &repository.Transaction{
-		Type: &txType,
-		Status: &txStatus,
-		Profile: profile,
-		Account: account,
-		Instrument: instrument,
-		InstrumentId: instrumentId,
-		Currency: profile.Currency,
-		Amount: amount,
-		AmountConverted: amount, // @todo: convert amount to account currency from profile currency
-		CurrencyConverted: account.Currency,
-		OrderId: orderId,
-		Reference: reference,
-	}
-}
-
 func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	var req validators.CardAuthorizeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -199,7 +160,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 
 	th.loggerFunc(c).Printf("using account: %v", route.Account)
 
-	transaction := th.new(c, "authorize", &req.OrderId, profile, route.Account, instrument, card.Id, &req.Amount, nil)
+	transaction := repository.NewTransaction("authorize", &req.OrderId, profile, route.Account, instrument, card.Id, &req.Amount, nil)
 
 	if err := th.transactionStore.Add(c, transaction); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -209,12 +170,13 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	}
 
 	if err := bankApi.Authorize(c, transaction, req); err != nil {
-		th.decline(c, transaction, err.Error())
-	} else {
-		th.success(c, transaction)
+		mess := err.Error()
+		transaction.Declined(&mess)
 	}
 
-	th.transactionStore.Update(c, transaction)
+	if err, notfound := th.transactionStore.Update(c, transaction); err != nil {
+		th.loggerFunc(c).Warningf("failed to update transaction: %v (notfound: %v)", err, notfound)
+	}
 
 	c.JSON(http.StatusOK, transaction)
 }

@@ -50,7 +50,7 @@ type Config struct {
 			// read operation is cancelled
 			Read time.Duration `yaml:"read"`
 
-			// Read is the amount of time to wait
+			// Idle is the amount of time to wait
 			// until an IDLE HTTP session is closed
 			Idle time.Duration `yaml:"idle"`
 		} `yaml:"timeout"`

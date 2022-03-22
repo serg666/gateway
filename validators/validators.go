@@ -5,10 +5,26 @@ import (
 	"github.com/serg666/gateway/plugins/instruments/card"
 )
 
+type BrowserInfo struct {
+	UserAgent     string `json:"user_agent" binding:"required"`
+	AcceptHeader  string `json:"accept_header" binding:"required"`
+	ColorDepth    *int   `json:"color_depth" binding:"required"`
+	IP            string `json:"ip" binding:"required"`
+	Language      string `json:"language" binding:"required"`
+	ScreenHeight  *int   `json:"screen_height" binding:"required"`
+	ScreenWidth   *int   `json:"screen_width" binding:"required"`
+	ScreenPrint   string `json:"screen_print" binding:"required"`
+	TZ            *int   `json:"tz" binding:"required"`
+	TimeZone      string `json:"time_zone" binding:"required"`
+	JavaEnabled   *bool  `json:"java_enabled" binding:"required"`
+	DeviceChannel string `json:"device_channel" binding:"required"`
+}
+
 type CardAuthorizeRequest struct {
-	OrderId string        `json:"order_id" binding:"required"`
-	Amount  uint          `json:"amount" binding:"required,min=1"`
-	Card    bankcard.Card `json:"card" binding:"required"`
+	OrderId     string        `json:"order_id" binding:"required"`
+	Amount      uint          `json:"amount" binding:"required,min=1"`
+	Card        bankcard.Card `json:"card" binding:"required"`
+	BrowserInfo BrowserInfo   `json:"browser_info" binding:"required"`
 }
 
 func CardAuthorizationInstrumentRequester(request interface{}) (error, interface{}) {
