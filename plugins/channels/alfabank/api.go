@@ -29,6 +29,7 @@ var (
 		cfg             *config.Config,
 		route           *repository.Route,
 		instrumentStore interface{},
+		sessionStore    repository.SessionRepository,
 		logger          repository.LoggerFunc,
 	) (error, channels.BankChannel) {
 		if *route.Instrument.Id != bankcard.Id {
@@ -53,6 +54,7 @@ var (
 			cfg:             cfg,
 			logger:          logger,
 			instrumentStore: instrumentStore,
+			sessionStore:    sessionStore,
 			settings:        &abs,
 		}
 	})
@@ -84,6 +86,7 @@ type AlfaBankChannel struct {
 	cfg             *config.Config
 	logger          repository.LoggerFunc
 	instrumentStore interface{}
+	sessionStore    repository.SessionRepository
 	settings        *AlfaBankSettings
 }
 
@@ -491,8 +494,12 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 							ThreeDSMethodData: methodData,
 						}
 						transaction.WaitAreq()
-						// @todo: save params to secure session
-						// to make request after hidden frame has been loaded
+						if err := abc.sessionStore.Add(c, repository.NewSession(
+							fmt.Sprintf("waitareqfortrans_%d", *transaction.Id),
+							repository.SessionData{"query": data.Encode()},
+						)); err != nil {
+							return fmt.Errorf("can not add waitareq session: %v", err)
+						}
 					} else {
 						abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data)
 						// @todo: parse acs and creq here

@@ -23,6 +23,7 @@ type transactionHandler struct {
 	routerStore      repository.RouterRepository
 	cardStore        repository.CardRepository
 	transactionStore repository.TransactionRepository
+	sessionStore     repository.SessionRepository
 }
 
 func (th *transactionHandler) route(
@@ -150,7 +151,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, bankApi := plugins.BankApi(th.cfg, route, th.cardStore, th.loggerFunc)
+	err, bankApi := plugins.BankApi(th.cfg, route, th.cardStore, th.sessionStore, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -191,6 +192,7 @@ func NewTransactionHandler(
 	currencyStore repository.CurrencyRepository,
 	cardStore repository.CardRepository,
 	transactionStore repository.TransactionRepository,
+	sessionStore repository.SessionRepository,
 	cfg *config.Config,
 	loggerFunc repository.LoggerFunc,
 ) *transactionHandler {
@@ -206,5 +208,6 @@ func NewTransactionHandler(
 		routerStore:      routerStore,
 		cardStore:        cardStore,
 		transactionStore: transactionStore,
+		sessionStore:     sessionStore,
 	}
 }

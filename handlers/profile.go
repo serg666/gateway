@@ -106,7 +106,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 		return
 	}
 
-	currency := &repository.Currency{}
+	var currency *repository.Currency
 
 	if req.CurrencyCode != nil {
 		err, _, currencies := ph.currencyStore.Query(c, repository.NewCurrencySpecificationByNumericCode(*req.CurrencyCode))

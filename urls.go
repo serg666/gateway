@@ -22,6 +22,7 @@ func MakeHandler(
 	currencyStore repository.CurrencyRepository,
 	cardStore repository.CardRepository,
 	transactionStore repository.TransactionRepository,
+	sessionStore repository.SessionRepository,
 	cfg *config.Config,
 	loggerFunc repository.LoggerFunc,
 ) *gin.Engine {
@@ -48,6 +49,7 @@ func MakeHandler(
 		currencyStore,
 		cardStore,
 		transactionStore,
+		sessionStore,
 		cfg,
 		loggerFunc,
 	)

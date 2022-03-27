@@ -17,6 +17,7 @@ var (
 		cfg             *config.Config,
 		route           *repository.Route,
 		instrumentStore interface{},
+		sessionStore    repository.SessionRepository,
 		logger          repository.LoggerFunc,
 	) (error, channels.BankChannel) {
 		if *route.Instrument.Id != bankcard.Id {
@@ -26,6 +27,7 @@ var (
 		return nil, &KvellBankChannel{
 			cfg:             cfg,
 			instrumentStore: instrumentStore,
+			sessionStore:    sessionStore,
 			logger:          logger,
 		}
 	})
@@ -34,6 +36,7 @@ var (
 type KvellBankChannel struct {
 	cfg             *config.Config
 	instrumentStore interface{}
+	sessionStore    repository.SessionRepository
 	logger          repository.LoggerFunc
 }
 

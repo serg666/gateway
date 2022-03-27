@@ -196,7 +196,13 @@ func CheckPaymentInstruments(instrumentStore repository.InstrumentRepository) er
 	return nil
 }
 
-type BankChannelFunc func (*config.Config, *repository.Route, interface{}, repository.LoggerFunc) (error, channels.BankChannel)
+type BankChannelFunc func (
+	*config.Config,
+	*repository.Route,
+	interface{},
+	repository.SessionRepository,
+	repository.LoggerFunc,
+) (error, channels.BankChannel)
 
 type BankChannel struct {
 	Key    string
@@ -212,12 +218,13 @@ func BankApi(
 	cfg *config.Config,
 	route *repository.Route,
 	instrumentStore interface{},
+	sessionStore repository.SessionRepository,
 	logger repository.LoggerFunc,
 ) (error, channels.BankChannel) {
 	cid := *route.Account.Channel.Id
 
 	if val, ok := BankChannels[cid]; ok {
-		err, api := val.Plugin(cfg, route, instrumentStore, logger)
+		err, api := val.Plugin(cfg, route, instrumentStore, sessionStore, logger)
 		if err != nil {
 			return fmt.Errorf("failed to initiate bank api: %v", err), nil
 		}
