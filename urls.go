@@ -80,7 +80,8 @@ func MakeHandler(
 	)
 
 	// @note: payment interface
-	handler.POST("/profiles/:id/transactions/authorize/card", transactionHandler.CardAuthorizeHandler)
+	handler.POST("/profiles/:pid/transactions/authorize/card", transactionHandler.CardAuthorizeHandler)
+	handler.POST("/profiles/:pid/transactions/:tid/completemethodurl", transactionHandler.CompleteMethodUrlHandler)
 
 	// @note: admin interface (should be moved to another web service)
 	handler.POST("/routes", routeHandler.CreateRouteHandler)

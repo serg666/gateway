@@ -493,12 +493,12 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 							MethodUrl: methodUrl,
 							ThreeDSMethodData: methodData,
 						}
-						transaction.WaitAreq()
+						transaction.WaitMethodUrl()
 						if err := abc.sessionStore.Add(c, repository.NewSession(
-							fmt.Sprintf("waitareqfortrans_%d", *transaction.Id),
+							fmt.Sprintf("waitmethodurlfortrans_%d", *transaction.Id),
 							repository.SessionData{"query": data.Encode()},
 						)); err != nil {
-							return fmt.Errorf("can not add waitareq session: %v", err)
+							return fmt.Errorf("can not add waitmethodurl session: %v", err)
 						}
 					} else {
 						abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data)

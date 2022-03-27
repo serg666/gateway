@@ -62,6 +62,79 @@ func (th *transactionHandler) route(
 	return nil, route
 }
 
+func (th *transactionHandler) CompleteMethodUrlHandler(c *gin.Context) {
+	var req validators.CompleteMethodUrlRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	pid, err := strconv.Atoi(c.Params.ByName("pid"))
+	if err !=  nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	err, _, profiles := th.profileStore.Query(c, repository.NewProfileSpecificationByID(pid))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if len(profiles) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprintf("Profile with id=%v not found", pid),
+		})
+		return
+	}
+
+	profile := profiles[0]
+
+	tid, err := strconv.Atoi(c.Params.ByName("tid"))
+	if err !=  nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	err, _, transactions := th.transactionStore.Query(c, repository.NewTransactionSpecificationByID(tid))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if len(transactions) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprintf("Transaction with id=%v not found", tid),
+		})
+		return
+	}
+
+	transaction := transactions[0]
+
+	if *transaction.Profile.Id != *profile.Id {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprintf("Transaction profile does not match profile: %d!=%d", *transaction.Profile.Id, *profile.Id),
+		})
+		return
+	}
+
+	// @note: BankApi should not accept route. It should accept account and instrument instead of route
+
+	c.JSON(http.StatusOK, transaction)
+}
+
 func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	var req validators.CardAuthorizeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -71,7 +144,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.Atoi(c.Params.ByName("id"))
+	id, err := strconv.Atoi(c.Params.ByName("pid"))
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -151,6 +224,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
+	// @todo: BankApi should not accept route. It should accept account and instrument instead of route
 	err, bankApi := plugins.BankApi(th.cfg, route, th.cardStore, th.sessionStore, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

@@ -35,3 +35,7 @@ func CardAuthorizationInstrumentRequester(request interface{}) (error, interface
 
 	return nil, cardAuthorizeRequest.Card
 }
+
+type CompleteMethodUrlRequest struct {
+	Completed *bool `json:"completed" binding:"required"`
+}
