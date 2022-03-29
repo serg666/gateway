@@ -27,16 +27,16 @@ var (
 	Key = "alfabank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
 		cfg             *config.Config,
-		route           *repository.Route,
-		instrumentStore interface{},
+		account         *repository.Account,
+		instrument      *repository.Instrument,
 		sessionStore    repository.SessionRepository,
 		logger          repository.LoggerFunc,
 	) (error, channels.BankChannel) {
-		if *route.Instrument.Id != bankcard.Id {
-			return fmt.Errorf("alfabank channel not sutable for instrument <%d>", *route.Instrument.Id), nil
+		if *instrument.Id != bankcard.Id {
+			return fmt.Errorf("alfabank channel not sutable for instrument <%d>", *instrument.Id), nil
 		}
 
-		jsonbody, err := json.Marshal(route.Account.Settings)
+		jsonbody, err := json.Marshal(account.Settings)
 		if err != nil {
 			return fmt.Errorf("can not marshal alfabank account settings: %v", err), nil
 		}
@@ -53,7 +53,6 @@ var (
 		return nil, &AlfaBankChannel{
 			cfg:             cfg,
 			logger:          logger,
-			instrumentStore: instrumentStore,
 			sessionStore:    sessionStore,
 			settings:        &abs,
 		}
@@ -85,7 +84,6 @@ type AlfaBankSettings struct {
 type AlfaBankChannel struct {
 	cfg             *config.Config
 	logger          repository.LoggerFunc
-	instrumentStore interface{}
 	sessionStore    repository.SessionRepository
 	settings        *AlfaBankSettings
 }

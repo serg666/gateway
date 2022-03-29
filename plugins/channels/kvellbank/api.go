@@ -15,18 +15,17 @@ var (
 	Key = "kvellbank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
 		cfg             *config.Config,
-		route           *repository.Route,
-		instrumentStore interface{},
+		account         *repository.Account,
+		instrument      *repository.Instrument,
 		sessionStore    repository.SessionRepository,
 		logger          repository.LoggerFunc,
 	) (error, channels.BankChannel) {
-		if *route.Instrument.Id != bankcard.Id {
-			return fmt.Errorf("kvellbank channel not sutable for instrument <%d>", *route.Instrument.Id), nil
+		if *instrument.Id != bankcard.Id {
+			return fmt.Errorf("kvellbank channel not sutable for instrument <%d>", *instrument.Id), nil
 		}
 
 		return nil, &KvellBankChannel{
 			cfg:             cfg,
-			instrumentStore: instrumentStore,
 			sessionStore:    sessionStore,
 			logger:          logger,
 		}
@@ -35,7 +34,6 @@ var (
 
 type KvellBankChannel struct {
 	cfg             *config.Config
-	instrumentStore interface{}
 	sessionStore    repository.SessionRepository
 	logger          repository.LoggerFunc
 }

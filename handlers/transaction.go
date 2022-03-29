@@ -130,7 +130,15 @@ func (th *transactionHandler) CompleteMethodUrlHandler(c *gin.Context) {
 		return
 	}
 
-	// @note: BankApi should not accept route. It should accept account and instrument instead of route
+	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, th.sessionStore, th.loggerFunc)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	th.loggerFunc(c).Printf("using bank api: %v", bankApi)
 
 	c.JSON(http.StatusOK, transaction)
 }
@@ -224,8 +232,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	// @todo: BankApi should not accept route. It should accept account and instrument instead of route
-	err, bankApi := plugins.BankApi(th.cfg, route, th.cardStore, th.sessionStore, th.loggerFunc)
+	err, bankApi := plugins.BankApi(th.cfg, route.Account, route.Instrument, th.sessionStore, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
