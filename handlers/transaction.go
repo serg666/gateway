@@ -130,6 +130,13 @@ func (th *transactionHandler) CompleteMethodUrlHandler(c *gin.Context) {
 		return
 	}
 
+	if !transaction.IsMethodUrlWaiting() {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
+		})
+		return
+	}
+
 	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, th.sessionStore, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -138,7 +145,16 @@ func (th *transactionHandler) CompleteMethodUrlHandler(c *gin.Context) {
 		return
 	}
 
-	th.loggerFunc(c).Printf("using bank api: %v", bankApi)
+	th.loggerFunc(c).Printf("using account: %v", transaction.Account)
+
+	if err := bankApi.CompleteMethodUrl(c, transaction, req); err != nil {
+		mess := err.Error()
+		transaction.Declined(&mess)
+	}
+
+	if err, notfound := th.transactionStore.Update(c, transaction); err != nil {
+		th.loggerFunc(c).Warningf("failed to update transaction: %v (notfound: %v)", err, notfound)
+	}
 
 	c.JSON(http.StatusOK, transaction)
 }

@@ -92,18 +92,15 @@ func (abc *AlfaBankChannel) makeRequest(
 	c *gin.Context,
 	method string,
 	url string,
-	data url.Values,
+	data string,
 ) (error, *map[string]interface{}) {
-	data.Set("userName", abc.settings.Login)
-	data.Set("password", abc.settings.Password)
-
-	r, err := http.NewRequest(method, fmt.Sprintf("%s/%s", abc.cfg.Alfabank.Ecom.Url, url), strings.NewReader(data.Encode()))
+	r, err := http.NewRequest(method, fmt.Sprintf("%s/%s", abc.cfg.Alfabank.Ecom.Url, url), strings.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("can not make new request: %v", err), nil
 	}
 
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+	r.Header.Add("Content-Length", strconv.Itoa(len(data)))
 
 	res, err := client.Client.Do(r)
 	if err != nil {
@@ -466,8 +463,10 @@ func (abc *AlfaBankChannel) parseState(
 func (abc *AlfaBankChannel) updateTransaction(c *gin.Context, transaction *repository.Transaction) {
 	if !transaction.InFinalState() {
 		data := url.Values{}
+		data.Set("userName", abc.settings.Login)
+		data.Set("password", abc.settings.Password)
 		data.Set("orderId", *transaction.RemoteId)
-		if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/getOrderStatusExtended.do", data); err == nil {
+		if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/getOrderStatusExtended.do", data.Encode()); err == nil {
 			state, actionCode, actionCodeDescr, rrn, authCode, bindingId := abc.parseState(c, jsonResp)
 
 			transaction.ResponseCode = actionCode
@@ -502,12 +501,14 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 	}
 
 	data := url.Values{}
+	data.Set("userName", abc.settings.Login)
+	data.Set("password", abc.settings.Password)
 	data.Set("orderNumber", strconv.Itoa(*transaction.Id))
 	data.Set("currency", strconv.Itoa(*transaction.CurrencyConverted.NumericCode))
 	data.Set("amount", strconv.Itoa(int(*transaction.AmountConverted)))
 	data.Set("returnUrl", "1")
 
-	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/register.do", data)
+	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/register.do", data.Encode())
 	if err != nil {
 		return fmt.Errorf("can not make register order request: %v", err)
 	}
@@ -517,6 +518,8 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 			transaction.RemoteId = &remoteId
 
 			data := url.Values{}
+			data.Set("userName", abc.settings.Login)
+			data.Set("password", abc.settings.Password)
 			data.Set("MDORDER", remoteId)
 			data.Set("$PAN", req.Card.Pan)
 			data.Set("$CVC", req.Card.Cvv)
@@ -524,7 +527,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 			data.Set("MM", fmt.Sprintf("%02d", int(req.Card.ExpDate.Month())))
 			data.Set("TEXT", req.Card.Holder)
 
-			if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data); err == nil {
+			if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data.Encode()); err == nil {
 				if is3ds20, transId, serverUrl, methodUrl, methodData := abc.is3DS20(c, jsonResp); is3ds20 {
 					//3ds20
 					if err := abc.putBrowserInfo(c, req.BrowserInfo, serverUrl, transId); err != nil {
@@ -544,7 +547,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 							return fmt.Errorf("can not add waitmethodurl session: %v", err)
 						}
 					} else {
-						if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data); err == nil {
+						if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data.Encode()); err == nil {
 							if iscreq, acs, creq := abc.isCREQ(c, jsonResp); iscreq {
 								transaction.ThreeDSecure20 = &repository.ThreeDSecure20{
 									AcsUrl: acs,
@@ -604,4 +607,53 @@ func (abc *AlfaBankChannel) Refund(c *gin.Context) {
 
 func (abc *AlfaBankChannel) Complete3DS(c *gin.Context) {
 	abc.logger(c).Print("complete3ds")
+}
+
+func (abc *AlfaBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+	req, ok := request.(validators.CompleteMethodUrlRequest)
+	if !ok {
+		return errors.New("request has wrong type")
+	}
+
+	abc.logger(c).Printf("completed: %v", *req.Completed)
+
+	sessionKey := fmt.Sprintf("waitmethodurlfortrans_%d", *transaction.Id)
+	err, _, sessions := abc.sessionStore.Query(c, repository.NewSessionSpecificationByKey(sessionKey))
+
+	if err != nil {
+		return fmt.Errorf("failed to query session store: %v", err)
+	}
+
+	if len(sessions) == 0 {
+		return fmt.Errorf("session with key %s not found", sessionKey)
+	}
+
+	session := sessions[0]
+	sessionData := session.Data
+
+	query, ok := (*sessionData)["query"]
+	if !ok {
+		return errors.New("session data has not query")
+	}
+
+	qwr, ok := query.(string)
+	if !ok {
+		return errors.New("session data query has wrong type")
+	}
+
+	if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", qwr); err == nil {
+		if iscreq, acs, creq := abc.isCREQ(c, jsonResp); iscreq {
+			transaction.ThreeDSecure20 = &repository.ThreeDSecure20{
+				AcsUrl: acs,
+				Creq: creq,
+			}
+			transaction.Wait3DS()
+		} else {
+			abc.updateTransaction(c, transaction)
+		}
+	} else {
+		abc.updateTransaction(c, transaction)
+	}
+
+	return nil
 }

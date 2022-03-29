@@ -62,3 +62,8 @@ func (kbc *KvellBankChannel) Refund(c *gin.Context) {
 func (kbc *KvellBankChannel) Complete3DS(c *gin.Context) {
 	kbc.logger(c).Print("complete3ds int")
 }
+
+func (kbc *KvellBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+	kbc.logger(c).Print("complete method url")
+	return nil
+}
