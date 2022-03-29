@@ -231,6 +231,33 @@ func (abc *AlfaBankChannel) putBrowserInfo(
 	return nil
 }
 
+func (abc *AlfaBankChannel) isCREQ(c *gin.Context, response *map[string]interface{}) (bool, *string, *string) {
+	var acsURL *string
+	var cReq  *string
+
+	if acsUrl, ok := (*response)["acsUrl"]; ok {
+		if acs, ok := acsUrl.(string); ok {
+			acsURL = &acs
+		} else {
+			return false, nil, nil
+		}
+	} else {
+		return false, nil, nil
+	}
+
+	if packedCReq, ok := (*response)["packedCReq"]; ok {
+		if creq, ok := packedCReq.(string); ok {
+			cReq = &creq
+		} else {
+			return false, nil, nil
+		}
+	} else {
+		return false, nil, nil
+	}
+
+	return true, acsURL, cReq
+}
+
 func (abc *AlfaBankChannel) is3DS20(
 	c *gin.Context,
 	response *map[string]interface{},
@@ -519,9 +546,19 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 							return fmt.Errorf("can not add waitmethodurl session: %v", err)
 						}
 					} else {
-						abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data)
-						// @todo: parse acs and creq here
-						abc.updateTransaction(c, transaction)
+						if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data); err == nil {
+							if iscreq, acs, creq := abc.isCREQ(c, jsonResp); iscreq {
+								transaction.ThreeDSecure20 = &repository.ThreeDSecure20{
+									AcsUrl: acs,
+									Creq: creq,
+								}
+								transaction.Wait3DS()
+							} else {
+								abc.updateTransaction(c, transaction)
+							}
+						} else {
+							abc.updateTransaction(c, transaction)
+						}
 					}
 				} else {
 					if is3ds10, acs, pareq := abc.is3DS10(c, jsonResp); is3ds10 {
