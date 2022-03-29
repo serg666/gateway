@@ -133,86 +133,102 @@ func (abc *AlfaBankChannel) putBrowserInfo(
 	browserInfo validators.BrowserInfo,
 	serverUrl *string,
 	transId *string,
-) {
+) error {
 	abc.logger(c).Debugf("putting browserInfo: %v", browserInfo)
-	if serverUrl != nil {
-		abc.logger(c).Debugf("requesting: %s", *serverUrl)
-		data := url.Values{}
-		if r, err := http.NewRequest("POST", *serverUrl, strings.NewReader(data.Encode())); err == nil {
-			r.Header.Add("User-Agent", browserInfo.UserAgent)
-			r.Header.Add("Accept", browserInfo.AcceptHeader)
-			r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-			r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
-			if res, err := client.Client.Do(r); err == nil {
-				defer res.Body.Close()
-				abc.logger(c).Debugf("response code: %d", res.StatusCode)
-				if body, err := ioutil.ReadAll(res.Body); err == nil {
-					abc.logger(c).Debugf("response body: %s", string(body))
-					re := regexp.MustCompile(`(https?://[^\"\s>]+)`)
-					links := re.FindAll(body, -1)
-					abc.logger(c).Printf("links: %q", links)
-					if len(links) > 0 {
-						clientUrl := string(links[len(links)-1])
-						abc.logger(c).Printf("link: %s", clientUrl)
-						abc.logger(c).Debugf("requesting: %s", clientUrl)
-						ua := ua.Parse(browserInfo.UserAgent)
-						clientInfo := ClientInfo{
-							UserAgent: ua.String,
-							OS: ua.OS,
-							OSVersion: ua.OSVersion,
-							Device: ua.Device,
-							Mobile: ua.Mobile,
-							ScreenPrint: browserInfo.ScreenPrint,
-							ColorDepth: *browserInfo.ColorDepth,
-							ScreenHeight: *browserInfo.ScreenHeight,
-							ScreenWidth: *browserInfo.ScreenWidth,
-							JavaEnabled: *browserInfo.JavaEnabled,
-							JavascriptEnabled: true,
-							BrowserLanguage: browserInfo.Language,
-							BrowserTimeZone: browserInfo.TimeZone,
-							BrowserTimeZoneOffset: *browserInfo.TZ,
-						}
-						if jsonbody, err := json.Marshal(clientInfo); err == nil {
-							abc.logger(c).Printf("json body: %s", string(jsonbody))
-							postData := url.Values{}
-							postData.Set("threeDSServerTransID", *transId)
-							postData.Set("clientInfo", string(jsonbody))
-							if nr, err := http.NewRequest("POST", clientUrl, strings.NewReader(postData.Encode())); err == nil {
-								nr.Header.Add("User-Agent", browserInfo.UserAgent)
-								nr.Header.Add("Accept", browserInfo.AcceptHeader)
-								nr.Header.Add("Referer", *serverUrl)
-								nr.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-								nr.Header.Add("Content-Length", strconv.Itoa(len(postData.Encode())))
-								if nres, err := client.Client.Do(nr); err == nil {
-									defer nres.Body.Close()
-									abc.logger(c).Debugf("client response code: %d", nres.StatusCode)
-									if nbody, err := ioutil.ReadAll(nres.Body); err == nil {
-										abc.logger(c).Debugf("client response body: %s", string(nbody))
-									} else {
-										abc.logger(c).Warningf("can not read client info response body: %v", err)
-									}
-								} else {
-									abc.logger(c).Warningf("can not do client info request: %v", err)
-								}
-							} else {
-								abc.logger(c).Warningf("can not make client info request: %v", err)
-							}
-						} else {
-							abc.logger(c).Warningf("can not marshal client info: %v", err)
-						}
-					} else {
-						abc.logger(c).Warning("no links has been found")
-					}
-				} else {
-					abc.logger(c).Warningf("can not read response body: %v", err)
-				}
-			} else {
-				abc.logger(c).Warningf("can not do request: %v", err)
-			}
-		} else {
-			abc.logger(c).Warningf("can not make new request: %v", err)
-		}
+
+	if serverUrl == nil {
+		return errors.New("server URL is null")
 	}
+
+	abc.logger(c).Debugf("requesting: %s", *serverUrl)
+	data := url.Values{}
+
+	r, err := http.NewRequest("POST", *serverUrl, strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("can not make new request: %v", err)
+	}
+
+	r.Header.Add("User-Agent", browserInfo.UserAgent)
+	r.Header.Add("Accept", browserInfo.AcceptHeader)
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	res, err := client.Client.Do(r)
+	if err != nil {
+		return fmt.Errorf("can not do request: %v", err)
+	}
+	defer res.Body.Close()
+
+	abc.logger(c).Debugf("response code: %d", res.StatusCode)
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("can not read response body: %v", err)
+	}
+
+	abc.logger(c).Debugf("response body: %s", string(body))
+	re := regexp.MustCompile(`(https?://[^\"\s>]+)`)
+	links := re.FindAll(body, -1)
+	abc.logger(c).Printf("links: %q", links)
+	if len(links) == 0 {
+		return errors.New("no links has been found")
+	}
+
+	clientUrl := string(links[len(links)-1])
+	abc.logger(c).Printf("link: %s", clientUrl)
+	abc.logger(c).Debugf("requesting: %s", clientUrl)
+	ua := ua.Parse(browserInfo.UserAgent)
+	clientInfo := ClientInfo{
+		UserAgent: ua.String,
+		OS: ua.OS,
+		OSVersion: ua.OSVersion,
+		Device: ua.Device,
+		Mobile: ua.Mobile,
+		ScreenPrint: browserInfo.ScreenPrint,
+		ColorDepth: *browserInfo.ColorDepth,
+		ScreenHeight: *browserInfo.ScreenHeight,
+		ScreenWidth: *browserInfo.ScreenWidth,
+		JavaEnabled: *browserInfo.JavaEnabled,
+		JavascriptEnabled: true,
+		BrowserLanguage: browserInfo.Language,
+		BrowserTimeZone: browserInfo.TimeZone,
+		BrowserTimeZoneOffset: *browserInfo.TZ,
+	}
+
+	jsonbody, err := json.Marshal(clientInfo)
+	if err != nil {
+		return fmt.Errorf("can not marshal client info: %v", err)
+	}
+
+	abc.logger(c).Printf("json body: %s", string(jsonbody))
+	postData := url.Values{}
+	postData.Set("threeDSServerTransID", *transId)
+	postData.Set("clientInfo", string(jsonbody))
+	nr, err := http.NewRequest("POST", clientUrl, strings.NewReader(postData.Encode()))
+	if err != nil {
+		return fmt.Errorf("can not make client info request: %v", err)
+	}
+
+	nr.Header.Add("User-Agent", browserInfo.UserAgent)
+	nr.Header.Add("Accept", browserInfo.AcceptHeader)
+	nr.Header.Add("Referer", *serverUrl)
+	nr.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	nr.Header.Add("Content-Length", strconv.Itoa(len(postData.Encode())))
+
+	nres, err := client.Client.Do(nr)
+	if err != nil {
+		return fmt.Errorf("can not do client info request: %v", err)
+	}
+	defer nres.Body.Close()
+
+	abc.logger(c).Debugf("client response code: %d", nres.StatusCode)
+	nbody, err := ioutil.ReadAll(nres.Body)
+	if err != nil {
+		return fmt.Errorf("can not read client info response body: %v", err)
+	}
+
+	abc.logger(c).Debugf("client response body: %s", string(nbody))
+
+	return nil
 }
 
 func (abc *AlfaBankChannel) is3DS20(
@@ -486,7 +502,9 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 			if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data); err == nil {
 				if is3ds20, transId, serverUrl, methodUrl, methodData := abc.is3DS20(c, jsonResp); is3ds20 {
 					//3ds20
-					abc.putBrowserInfo(c, req.BrowserInfo, serverUrl, transId)
+					if err := abc.putBrowserInfo(c, req.BrowserInfo, serverUrl, transId); err != nil {
+						abc.logger(c).Warningf("can not put browser info: %v", err)
+					}
 					data.Set("threeDSServerTransId", *transId)
 					if methodUrl != nil {
 						transaction.ThreeDSMethodUrl = &repository.ThreeDSMethodUrl{
