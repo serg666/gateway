@@ -88,13 +88,26 @@ type AlfaBankChannel struct {
 	settings        *AlfaBankSettings
 }
 
+func (abc *AlfaBankChannel) maskParams(data string) string {
+	sampleRegexp := regexp.MustCompile(`PAN=[^&]+([^&]{4})`)
+	result := sampleRegexp.ReplaceAllString(data, "PAN=******$1")
+	sampleRegexp = regexp.MustCompile(`CVC=[^&]+`)
+	result = sampleRegexp.ReplaceAllString(result, "CVC=***")
+	sampleRegexp = regexp.MustCompile(`password=[^&]+`)
+	result = sampleRegexp.ReplaceAllString(result, "password=******")
+	return result
+}
+
 func (abc *AlfaBankChannel) makeRequest(
 	c *gin.Context,
 	method string,
 	url string,
 	data string,
 ) (error, *map[string]interface{}) {
-	r, err := http.NewRequest(method, fmt.Sprintf("%s/%s", abc.cfg.Alfabank.Ecom.Url, url), strings.NewReader(data))
+	uri := fmt.Sprintf("%s/%s", abc.cfg.Alfabank.Ecom.Url, url)
+	abc.logger(c).Printf("Requesting: %s", uri)
+	abc.logger(c).Printf("Params: %s", abc.maskParams(data))
+	r, err := http.NewRequest(method, uri, strings.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("can not make new request: %v", err), nil
 	}
@@ -506,6 +519,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 	data.Set("orderNumber", strconv.Itoa(*transaction.Id))
 	data.Set("currency", strconv.Itoa(*transaction.CurrencyConverted.NumericCode))
 	data.Set("amount", strconv.Itoa(int(*transaction.AmountConverted)))
+	// @note: we do not use return url at all
 	data.Set("returnUrl", "1")
 
 	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/register.do", data.Encode())
@@ -533,6 +547,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 					if err := abc.putBrowserInfo(c, req.BrowserInfo, serverUrl, transId); err != nil {
 						abc.logger(c).Warningf("can not put browser info: %v", err)
 					}
+					data.Set("threeDSVer2FinishUrl", req.ThreeDSVer2TermUrl)
 					data.Set("threeDSServerTransId", *transId)
 					if methodUrl != nil {
 						transaction.ThreeDSMethodUrl = &repository.ThreeDSMethodUrl{
@@ -605,8 +620,32 @@ func (abc *AlfaBankChannel) Refund(c *gin.Context) {
 	abc.logger(c).Print("refund")
 }
 
-func (abc *AlfaBankChannel) Complete3DS(c *gin.Context) {
-	abc.logger(c).Print("complete3ds")
+func (abc *AlfaBankChannel) ProcessPares(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+	req, ok := request.(validators.ProcessParesRequest)
+	if !ok {
+		return errors.New("request has wrong type")
+	}
+
+	abc.logger(c).Printf("Pares: %v", req.Pares)
+
+	return nil
+}
+
+func (abc *AlfaBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, cres channels.Cres) error {
+	abc.logger(c).Printf("transID: %s", cres.ThreeDSServerTransID)
+
+	data := url.Values{}
+	data.Set("userName", abc.settings.Login)
+	data.Set("password", abc.settings.Password)
+	data.Set("tDsTransId", cres.ThreeDSServerTransID)
+
+	if err, _ := abc.makeRequest(c, "POST", "ab/rest/finish3dsVer2.do", data.Encode()); err != nil {
+		abc.logger(c).Warningf("failed to finish 3ds ver 2: %v", err)
+	}
+
+	abc.updateTransaction(c, transaction)
+
+	return nil
 }
 
 func (abc *AlfaBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, request interface{}) error {

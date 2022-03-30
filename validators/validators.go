@@ -21,10 +21,11 @@ type BrowserInfo struct {
 }
 
 type CardAuthorizeRequest struct {
-	OrderId     string        `json:"order_id" binding:"required"`
-	Amount      uint          `json:"amount" binding:"required,min=1"`
-	Card        bankcard.Card `json:"card" binding:"required"`
-	BrowserInfo BrowserInfo   `json:"browser_info" binding:"required"`
+	OrderId            string        `json:"order_id" binding:"required"`
+	Amount             uint          `json:"amount" binding:"required,min=1"`
+	Card               bankcard.Card `json:"card" binding:"required"`
+	ThreeDSVer2TermUrl string        `json:"threedsver2termurl" binding:"required"`
+	BrowserInfo        BrowserInfo   `json:"browser_info" binding:"required"`
 }
 
 func CardAuthorizationInstrumentRequester(request interface{}) (error, interface{}) {
@@ -38,4 +39,12 @@ func CardAuthorizationInstrumentRequester(request interface{}) (error, interface
 
 type CompleteMethodUrlRequest struct {
 	Completed *bool `json:"completed" binding:"required"`
+}
+
+type ProcessCresRequest struct {
+	Cres string `json:"cres" binding:"required"`
+}
+
+type ProcessParesRequest struct {
+	Pares string `json:"pares" binding:"required"`
 }
