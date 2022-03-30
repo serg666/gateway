@@ -23,6 +23,7 @@ type BrowserInfo struct {
 type CardAuthorizeRequest struct {
 	OrderId            string        `json:"order_id" binding:"required"`
 	Amount             uint          `json:"amount" binding:"required,min=1"`
+	Customer           string        `json:"customer" binding:"required"`
 	Card               bankcard.Card `json:"card" binding:"required"`
 	ThreeDSVer2TermUrl string        `json:"threedsver2termurl" binding:"required"`
 	BrowserInfo        BrowserInfo   `json:"browser_info" binding:"required"`

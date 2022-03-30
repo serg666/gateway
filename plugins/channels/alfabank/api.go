@@ -519,6 +519,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 	data.Set("orderNumber", strconv.Itoa(*transaction.Id))
 	data.Set("currency", strconv.Itoa(*transaction.CurrencyConverted.NumericCode))
 	data.Set("amount", strconv.Itoa(int(*transaction.AmountConverted)))
+	data.Set("clientId", *transaction.Customer)
 	// @note: we do not use return url at all
 	data.Set("returnUrl", "1")
 

@@ -382,7 +382,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 
 	th.loggerFunc(c).Printf("using account: %v", route.Account)
 
-	transaction := repository.NewTransaction("authorize", &req.OrderId, profile, route.Account, instrument, card.Id, &req.Amount, nil)
+	transaction := repository.NewTransaction("authorize", &req.OrderId, profile, route.Account, instrument, card.Id, &req.Amount, &req.Customer, nil)
 
 	if err := th.transactionStore.Add(c, transaction); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
