@@ -541,6 +541,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 			data.Set("YYYY", strconv.Itoa(req.Card.ExpDate.Year()))
 			data.Set("MM", fmt.Sprintf("%02d", int(req.Card.ExpDate.Month())))
 			data.Set("TEXT", req.Card.Holder)
+			data.Set("threeDSVer2FinishUrl", req.ThreeDSVer2TermUrl)
 
 			if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data.Encode()); err == nil {
 				if is3ds20, transId, serverUrl, methodUrl, methodData := abc.is3DS20(c, jsonResp); is3ds20 {
@@ -548,7 +549,6 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 					if err := abc.putBrowserInfo(c, req.BrowserInfo, serverUrl, transId); err != nil {
 						abc.logger(c).Warningf("can not put browser info: %v", err)
 					}
-					data.Set("threeDSVer2FinishUrl", req.ThreeDSVer2TermUrl)
 					data.Set("threeDSServerTransId", *transId)
 					if methodUrl != nil {
 						transaction.ThreeDSMethodUrl = &repository.ThreeDSMethodUrl{
