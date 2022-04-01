@@ -11,9 +11,9 @@ type BankChannel interface {
 	Confirm(c *gin.Context)
 	Reverse(c *gin.Context)
 	Refund(c *gin.Context)
-	ProcessCres(c *gin.Context, transaction *repository.Transaction, request interface{}) error
-	ProcessPares(c *gin.Context, transaction *repository.Transaction, request interface{}) error
-	CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, request interface{}) error
+	ProcessCres(c *gin.Context, transaction *repository.Transaction, cres string) error
+	ProcessPares(c *gin.Context, transaction *repository.Transaction, pares string) error
+	CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, completed bool) error
 }
 
 var BankChannelType int = 1

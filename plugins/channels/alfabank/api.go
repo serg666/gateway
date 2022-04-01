@@ -624,16 +624,11 @@ func (abc *AlfaBankChannel) Refund(c *gin.Context) {
 	abc.logger(c).Print("refund")
 }
 
-func (abc *AlfaBankChannel) ProcessPares(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
-	req, ok := request.(validators.ProcessParesRequest)
-	if !ok {
-		return errors.New("request has wrong type")
-	}
-
-	abc.logger(c).Printf("Pares: %v", req.Pares)
+func (abc *AlfaBankChannel) ProcessPares(c *gin.Context, transaction *repository.Transaction, pares string) error {
+	abc.logger(c).Printf("Pares: %v", pares)
 
 	data := url.Values{}
-	data.Set("PaRes", req.Pares)
+	data.Set("PaRes", pares)
 	data.Set("MD", *transaction.RemoteId)
 
 	abc.makeRequest(c, "POST", "ab/rest/finish3ds.do", data.Encode())
@@ -642,7 +637,7 @@ func (abc *AlfaBankChannel) ProcessPares(c *gin.Context, transaction *repository
 	return nil
 }
 
-func (abc *AlfaBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+func (abc *AlfaBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, cres string) error {
 	sessionKey := fmt.Sprintf("3ds20session_%d", *transaction.Id)
 	err, _, sessions := abc.sessionStore.Query(c, repository.NewSessionSpecificationByKey(sessionKey))
 
@@ -678,13 +673,8 @@ func (abc *AlfaBankChannel) ProcessCres(c *gin.Context, transaction *repository.
 	return nil
 }
 
-func (abc *AlfaBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
-	req, ok := request.(validators.CompleteMethodUrlRequest)
-	if !ok {
-		return errors.New("request has wrong type")
-	}
-
-	abc.logger(c).Printf("completed: %v", *req.Completed)
+func (abc *AlfaBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, completed bool) error {
+	abc.logger(c).Printf("completed: %v", completed)
 
 	sessionKey := fmt.Sprintf("3ds20session_%d", *transaction.Id)
 	err, _, sessions := abc.sessionStore.Query(c, repository.NewSessionSpecificationByKey(sessionKey))

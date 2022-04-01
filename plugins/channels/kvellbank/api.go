@@ -59,17 +59,17 @@ func (kbc *KvellBankChannel) Refund(c *gin.Context) {
 	kbc.logger(c).Print("refund int")
 }
 
-func (kbc *KvellBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+func (kbc *KvellBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, cres string) error {
 	kbc.logger(c).Print("process cres")
 	return nil
 }
 
-func (kbc *KvellBankChannel) ProcessPares(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+func (kbc *KvellBankChannel) ProcessPares(c *gin.Context, transaction *repository.Transaction, pares string) error {
 	kbc.logger(c).Print("process pares")
 	return nil
 }
 
-func (kbc *KvellBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+func (kbc *KvellBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repository.Transaction, completed bool) error {
 	kbc.logger(c).Print("complete method url")
 	return nil
 }

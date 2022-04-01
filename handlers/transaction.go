@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/serg666/gateway/config"
 	"github.com/serg666/gateway/plugins"
+	"github.com/serg666/gateway/plugins/channels"
 	"github.com/serg666/gateway/validators"
 	"github.com/serg666/repository"
 )
@@ -62,6 +63,53 @@ func (th *transactionHandler) route(
 	return nil, route
 }
 
+func (th *transactionHandler) validate(c *gin.Context) (error, *repository.Transaction, channels.BankChannel) {
+	pid, err := strconv.Atoi(c.Params.ByName("pid"))
+	if err !=  nil {
+		return fmt.Errorf("invalid profile id: %v", err), nil, nil
+	}
+
+	err, _, profiles := th.profileStore.Query(c, repository.NewProfileSpecificationByID(pid))
+
+	if err != nil {
+		return fmt.Errorf("faild to query profile store: %v", err), nil, nil
+	}
+
+	if len(profiles) == 0 {
+		return fmt.Errorf("profile with id=%v not found", pid), nil, nil
+	}
+
+	profile := profiles[0]
+
+	tid, err := strconv.Atoi(c.Params.ByName("tid"))
+	if err !=  nil {
+		return fmt.Errorf("invalid transaction id: %v", err), nil, nil
+	}
+
+	err, _, transactions := th.transactionStore.Query(c, repository.NewTransactionSpecificationByID(tid))
+
+	if err != nil {
+		return fmt.Errorf("faild to query transaction store: %v", err), nil, nil
+	}
+
+	if len(transactions) == 0 {
+		return fmt.Errorf("transaction with id=%v not found", tid), nil, nil
+	}
+
+	transaction := transactions[0]
+
+	if *transaction.Profile.Id != *profile.Id {
+		return fmt.Errorf("incorrect transaction id: %v", tid), nil, nil
+	}
+
+	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, th.sessionStore, th.loggerFunc)
+	if err != nil {
+		return fmt.Errorf("faild to get bank api: %v", err), nil, nil
+	}
+
+	return nil, transaction, bankApi
+}
+
 func (th *transactionHandler) ProcessParesHandler(c *gin.Context) {
 	var req validators.ProcessParesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -71,84 +119,24 @@ func (th *transactionHandler) ProcessParesHandler(c *gin.Context) {
 		return
 	}
 
-	pid, err := strconv.Atoi(c.Params.ByName("pid"))
+	err, transaction, bankApi := th.validate(c)
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
-		})
-		return
-	}
-
-	err, _, profiles := th.profileStore.Query(c, repository.NewProfileSpecificationByID(pid))
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if len(profiles) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Profile with id=%v not found", pid),
-		})
-		return
-	}
-
-	profile := profiles[0]
-
-	tid, err := strconv.Atoi(c.Params.ByName("tid"))
-	if err !=  nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	err, _, transactions := th.transactionStore.Query(c, repository.NewTransactionSpecificationByID(tid))
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if len(transactions) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction with id=%v not found", tid),
-		})
-		return
-	}
-
-	transaction := transactions[0]
-
-	if *transaction.Profile.Id != *profile.Id {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction profile does not match profile: %d!=%d", *transaction.Profile.Id, *profile.Id),
 		})
 		return
 	}
 
 	if !transaction.Is3DSWaiting() {
-		c.JSON(http.StatusNotFound, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
 		})
 		return
 	}
 
-	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, th.sessionStore, th.loggerFunc)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
 	th.loggerFunc(c).Printf("using account: %v", transaction.Account)
-	th.loggerFunc(c).Printf("Pares: %v", req.Pares)
 
-	if err := bankApi.ProcessPares(c, transaction, req); err != nil {
+	if err := bankApi.ProcessPares(c, transaction, req.Pares); err != nil {
 		mess := err.Error()
 		transaction.Declined(&mess)
 	}
@@ -169,83 +157,24 @@ func (th *transactionHandler) ProcessCresHandler(c *gin.Context) {
 		return
 	}
 
-	pid, err := strconv.Atoi(c.Params.ByName("pid"))
+	err, transaction, bankApi := th.validate(c)
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
-		})
-		return
-	}
-
-	err, _, profiles := th.profileStore.Query(c, repository.NewProfileSpecificationByID(pid))
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if len(profiles) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Profile with id=%v not found", pid),
-		})
-		return
-	}
-
-	profile := profiles[0]
-
-	tid, err := strconv.Atoi(c.Params.ByName("tid"))
-	if err !=  nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	err, _, transactions := th.transactionStore.Query(c, repository.NewTransactionSpecificationByID(tid))
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if len(transactions) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction with id=%v not found", tid),
-		})
-		return
-	}
-
-	transaction := transactions[0]
-
-	if *transaction.Profile.Id != *profile.Id {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction profile does not match profile: %d!=%d", *transaction.Profile.Id, *profile.Id),
 		})
 		return
 	}
 
 	if !transaction.Is3DSWaiting() {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
-		})
-		return
-	}
-
-	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, th.sessionStore, th.loggerFunc)
-	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
 		})
 		return
 	}
 
 	th.loggerFunc(c).Printf("using account: %v", transaction.Account)
 
-	if err := bankApi.ProcessCres(c, transaction, req); err != nil {
+	if err := bankApi.ProcessCres(c, transaction, req.Cres); err != nil {
 		mess := err.Error()
 		transaction.Declined(&mess)
 	}
@@ -266,83 +195,24 @@ func (th *transactionHandler) CompleteMethodUrlHandler(c *gin.Context) {
 		return
 	}
 
-	pid, err := strconv.Atoi(c.Params.ByName("pid"))
+	err, transaction, bankApi := th.validate(c)
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
-		})
-		return
-	}
-
-	err, _, profiles := th.profileStore.Query(c, repository.NewProfileSpecificationByID(pid))
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if len(profiles) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Profile with id=%v not found", pid),
-		})
-		return
-	}
-
-	profile := profiles[0]
-
-	tid, err := strconv.Atoi(c.Params.ByName("tid"))
-	if err !=  nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	err, _, transactions := th.transactionStore.Query(c, repository.NewTransactionSpecificationByID(tid))
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	if len(transactions) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction with id=%v not found", tid),
-		})
-		return
-	}
-
-	transaction := transactions[0]
-
-	if *transaction.Profile.Id != *profile.Id {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction profile does not match profile: %d!=%d", *transaction.Profile.Id, *profile.Id),
 		})
 		return
 	}
 
 	if !transaction.IsMethodUrlWaiting() {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
-		})
-		return
-	}
-
-	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, th.sessionStore, th.loggerFunc)
-	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
 		})
 		return
 	}
 
 	th.loggerFunc(c).Printf("using account: %v", transaction.Account)
 
-	if err := bankApi.CompleteMethodUrl(c, transaction, req); err != nil {
+	if err := bankApi.CompleteMethodUrl(c, transaction, *req.Completed); err != nil {
 		mess := err.Error()
 		transaction.Declined(&mess)
 	}
