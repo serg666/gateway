@@ -550,18 +550,21 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 						abc.logger(c).Warningf("can not put browser info: %v", err)
 					}
 					data.Set("threeDSServerTransId", *transId)
+					if err := abc.sessionStore.Add(c, repository.NewSession(
+						fmt.Sprintf("3ds20session_%d", *transaction.Id),
+						repository.SessionData{
+							"query": data.Encode(),
+							"threeDSServerTransId": *transId,
+						},
+					)); err != nil {
+						return fmt.Errorf("can not add 3ds20 session: %v", err)
+					}
 					if methodUrl != nil {
 						transaction.ThreeDSMethodUrl = &repository.ThreeDSMethodUrl{
 							MethodUrl: methodUrl,
 							ThreeDSMethodData: methodData,
 						}
 						transaction.WaitMethodUrl()
-						if err := abc.sessionStore.Add(c, repository.NewSession(
-							fmt.Sprintf("waitmethodurlfortrans_%d", *transaction.Id),
-							repository.SessionData{"query": data.Encode()},
-						)); err != nil {
-							return fmt.Errorf("can not add waitmethodurl session: %v", err)
-						}
 					} else {
 						if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data.Encode()); err == nil {
 							if iscreq, acs, creq := abc.isCREQ(c, jsonResp); iscreq {
@@ -584,6 +587,14 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 							PaReq: pareq,
 						}
 						transaction.Wait3DS()
+						if err := abc.sessionStore.Add(c, repository.NewSession(
+							fmt.Sprintf("3ds10session_%d", *transaction.Id),
+							repository.SessionData{
+								"MDORDER": *transaction.RemoteId,
+							},
+						)); err != nil {
+							return fmt.Errorf("can not add 3ds20 session: %v", err)
+						}
 					} else {
 						abc.updateTransaction(c, transaction)
 					}
@@ -629,16 +640,72 @@ func (abc *AlfaBankChannel) ProcessPares(c *gin.Context, transaction *repository
 
 	abc.logger(c).Printf("Pares: %v", req.Pares)
 
+	sessionKey := fmt.Sprintf("3ds10session_%d", *transaction.Id)
+	err, _, sessions := abc.sessionStore.Query(c, repository.NewSessionSpecificationByKey(sessionKey))
+
+	if err != nil {
+		return fmt.Errorf("failed to query session store: %v", err)
+	}
+
+	if len(sessions) == 0 {
+		return fmt.Errorf("session with key %s not found", sessionKey)
+	}
+
+	session := sessions[0]
+	sessionData := session.Data
+
+	mdOrder, ok := (*sessionData)["MDORDER"]
+	if !ok {
+		return errors.New("session data has not MDORDER")
+	}
+
+	md, ok := mdOrder.(string)
+	if !ok {
+		return errors.New("session data MDORDER has wrong type")
+	}
+
+	data := url.Values{}
+	data.Set("PaRes", req.Pares)
+	data.Set("MD", md)
+
+	if err, _ := abc.makeRequest(c, "POST", "ab/rest/finish3ds.do", data.Encode()); err != nil {
+		abc.logger(c).Warningf("failed to finish 3ds ver 1: %v", err)
+	}
+
+	abc.updateTransaction(c, transaction)
+
 	return nil
 }
 
-func (abc *AlfaBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, cres channels.Cres) error {
-	abc.logger(c).Printf("transID: %s", cres.ThreeDSServerTransID)
+func (abc *AlfaBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+	sessionKey := fmt.Sprintf("3ds20session_%d", *transaction.Id)
+	err, _, sessions := abc.sessionStore.Query(c, repository.NewSessionSpecificationByKey(sessionKey))
+
+	if err != nil {
+		return fmt.Errorf("failed to query session store: %v", err)
+	}
+
+	if len(sessions) == 0 {
+		return fmt.Errorf("session with key %s not found", sessionKey)
+	}
+
+	session := sessions[0]
+	sessionData := session.Data
+
+	threeDSServerTransId, ok := (*sessionData)["threeDSServerTransId"]
+	if !ok {
+		return errors.New("session data has not threeDSServerTransId")
+	}
+
+	tDsTransId, ok := threeDSServerTransId.(string)
+	if !ok {
+		return errors.New("session data threeDSServerTransId has wrong type")
+	}
 
 	data := url.Values{}
 	data.Set("userName", abc.settings.Login)
 	data.Set("password", abc.settings.Password)
-	data.Set("tDsTransId", cres.ThreeDSServerTransID)
+	data.Set("tDsTransId", tDsTransId)
 
 	if err, _ := abc.makeRequest(c, "POST", "ab/rest/finish3dsVer2.do", data.Encode()); err != nil {
 		abc.logger(c).Warningf("failed to finish 3ds ver 2: %v", err)
@@ -657,7 +724,7 @@ func (abc *AlfaBankChannel) CompleteMethodUrl(c *gin.Context, transaction *repos
 
 	abc.logger(c).Printf("completed: %v", *req.Completed)
 
-	sessionKey := fmt.Sprintf("waitmethodurlfortrans_%d", *transaction.Id)
+	sessionKey := fmt.Sprintf("3ds20session_%d", *transaction.Id)
 	err, _, sessions := abc.sessionStore.Query(c, repository.NewSessionSpecificationByKey(sessionKey))
 
 	if err != nil {

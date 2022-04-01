@@ -59,7 +59,7 @@ func (kbc *KvellBankChannel) Refund(c *gin.Context) {
 	kbc.logger(c).Print("refund int")
 }
 
-func (kbc *KvellBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, cres channels.Cres) error {
+func (kbc *KvellBankChannel) ProcessCres(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
 	kbc.logger(c).Print("process cres")
 	return nil
 }
