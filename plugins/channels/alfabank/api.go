@@ -636,10 +636,7 @@ func (abc *AlfaBankChannel) ProcessPares(c *gin.Context, transaction *repository
 	data.Set("PaRes", req.Pares)
 	data.Set("MD", *transaction.RemoteId)
 
-	if err, _ := abc.makeRequest(c, "POST", "ab/rest/finish3ds.do", data.Encode()); err != nil {
-		abc.logger(c).Warningf("failed to finish 3ds ver 1: %v", err)
-	}
-
+	abc.makeRequest(c, "POST", "ab/rest/finish3ds.do", data.Encode())
 	abc.updateTransaction(c, transaction)
 
 	return nil
@@ -675,10 +672,7 @@ func (abc *AlfaBankChannel) ProcessCres(c *gin.Context, transaction *repository.
 	data.Set("password", abc.settings.Password)
 	data.Set("tDsTransId", tDsTransId)
 
-	if err, _ := abc.makeRequest(c, "POST", "ab/rest/finish3dsVer2.do", data.Encode()); err != nil {
-		abc.logger(c).Warningf("failed to finish 3ds ver 2: %v", err)
-	}
-
+	abc.makeRequest(c, "POST", "ab/rest/finish3dsVer2.do", data.Encode())
 	abc.updateTransaction(c, transaction)
 
 	return nil
