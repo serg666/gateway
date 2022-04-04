@@ -38,6 +38,19 @@ func CardAuthorizationInstrumentRequester(request interface{}) (error, interface
 	return nil, cardAuthorizeRequest.Card
 }
 
+type CardPreAuthorizeRequest struct {
+	CardAuthorizeRequest
+}
+
+func CardPreAuthorizationInstrumentRequester(request interface{}) (error, interface{}) {
+	cardPreAuthorizeRequest, ok := request.(CardPreAuthorizeRequest)
+	if !ok {
+		return fmt.Errorf("card preauthorization request has wrong type"), nil
+	}
+
+	return nil, cardPreAuthorizeRequest.Card
+}
+
 type CompleteMethodUrlRequest struct {
 	Completed *bool `json:"completed" binding:"required"`
 }

@@ -16,7 +16,13 @@ var (
 	PaymentInstruments = make(map[int]*PaymentInstrument)
 )
 
-type RouterFunc func (*repository.Route, repository.AccountRepository, interface{}, repository.LoggerFunc) (error, routers.Router)
+type RouterFunc func (
+	*repository.Route,
+	repository.AccountRepository,
+	interface{},
+	InstrumentRequesterFunc,
+	repository.LoggerFunc,
+) (error, routers.Router)
 
 type Router struct {
 	Key    string
@@ -31,6 +37,7 @@ func RouterApi(
 	route *repository.Route,
 	accountStore repository.AccountRepository,
 	instrumentStore interface{},
+	instrumentRequester InstrumentRequesterFunc,
 	logger repository.LoggerFunc,
 ) (error, routers.Router) {
 	if route.Router == nil {
@@ -38,7 +45,7 @@ func RouterApi(
 	}
 
 	if val, ok := Routers[*route.Router.Id]; ok {
-		err, api := val.Plugin(route, accountStore, instrumentStore, logger)
+		err, api := val.Plugin(route, accountStore, instrumentStore, instrumentRequester, logger)
 		if err != nil {
 			return fmt.Errorf("failed to initiate router api: %v", err), nil
 		}

@@ -43,8 +43,9 @@ func (kbc *KvellBankChannel) Authorize(c *gin.Context, transaction *repository.T
 	return nil
 }
 
-func (kbc *KvellBankChannel) PreAuthorize(c *gin.Context) {
+func (kbc *KvellBankChannel) PreAuthorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
 	kbc.logger(c).Print("preauthorize int")
+	return nil
 }
 
 func (kbc *KvellBankChannel) Confirm(c *gin.Context) {

@@ -507,12 +507,14 @@ func (abc *AlfaBankChannel) updateTransaction(c *gin.Context, transaction *repos
 	}
 }
 
-func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
-	req, ok := request.(validators.CardAuthorizeRequest)
-	if !ok {
-		return fmt.Errorf("request has wrong type")
-	}
-
+func (abc *AlfaBankChannel) processCard(
+	c *gin.Context,
+	transaction *repository.Transaction,
+	card bankcard.Card,
+	termUrl string,
+	browserInfo validators.BrowserInfo,
+	registerMethod string,
+) error {
 	data := url.Values{}
 	data.Set("userName", abc.settings.Login)
 	data.Set("password", abc.settings.Password)
@@ -523,7 +525,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 	// @note: we do not use return url at all
 	data.Set("returnUrl", "1")
 
-	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/register.do", data.Encode())
+	err, jsonResp := abc.makeRequest(c, "POST", fmt.Sprintf("ab/rest/%s", registerMethod), data.Encode())
 	if err != nil {
 		return fmt.Errorf("can not make register order request: %v", err)
 	}
@@ -536,17 +538,17 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 			data.Set("userName", abc.settings.Login)
 			data.Set("password", abc.settings.Password)
 			data.Set("MDORDER", remoteId)
-			data.Set("$PAN", req.Card.Pan)
-			data.Set("$CVC", req.Card.Cvv)
-			data.Set("YYYY", strconv.Itoa(req.Card.ExpDate.Year()))
-			data.Set("MM", fmt.Sprintf("%02d", int(req.Card.ExpDate.Month())))
-			data.Set("TEXT", req.Card.Holder)
-			data.Set("threeDSVer2FinishUrl", req.ThreeDSVer2TermUrl)
+			data.Set("$PAN", card.Pan)
+			data.Set("$CVC", card.Cvv)
+			data.Set("YYYY", strconv.Itoa(card.ExpDate.Year()))
+			data.Set("MM", fmt.Sprintf("%02d", int(card.ExpDate.Month())))
+			data.Set("TEXT", card.Holder)
+			data.Set("threeDSVer2FinishUrl", termUrl)
 
 			if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data.Encode()); err == nil {
 				if is3ds20, transId, serverUrl, methodUrl, methodData := abc.is3DS20(c, jsonResp); is3ds20 {
 					//3ds20
-					if err := abc.putBrowserInfo(c, req.BrowserInfo, serverUrl, transId); err != nil {
+					if err := abc.putBrowserInfo(c, browserInfo, serverUrl, transId); err != nil {
 						abc.logger(c).Warningf("can not put browser info: %v", err)
 					}
 					data.Set("threeDSServerTransId", *transId)
@@ -608,8 +610,22 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 	return nil
 }
 
-func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context) {
-	abc.logger(c).Print("preauthorize")
+func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+	req, ok := request.(validators.CardAuthorizeRequest)
+	if !ok {
+		return fmt.Errorf("request has wrong type")
+	}
+
+	return abc.processCard(c, transaction, req.Card, req.ThreeDSVer2TermUrl, req.BrowserInfo, "register.do")
+}
+
+func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
+	req, ok := request.(validators.CardPreAuthorizeRequest)
+	if !ok {
+		return fmt.Errorf("request has wrong type")
+	}
+
+	return abc.processCard(c, transaction, req.Card, req.ThreeDSVer2TermUrl, req.BrowserInfo, "registerPreAuth.do")
 }
 
 func (abc *AlfaBankChannel) Confirm(c *gin.Context) {

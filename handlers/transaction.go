@@ -32,6 +32,7 @@ func (th *transactionHandler) route(
 	profile *repository.Profile,
 	instrument *repository.Instrument,
 	instrumentStore interface{},
+	instrumentRequester plugins.InstrumentRequesterFunc,
 	request interface{},
 ) (error, *repository.Route) {
 	err, _, routes := th.routeStore.Query(c, repository.NewRouteSpecificationByProfileAndInstrument(
@@ -50,7 +51,7 @@ func (th *transactionHandler) route(
 	route := routes[0]
 
 	if route.Router != nil {
-		err, routerApi := plugins.RouterApi(route, th.accountStore, instrumentStore, th.loggerFunc)
+		err, routerApi := plugins.RouterApi(route, th.accountStore, instrumentStore, instrumentRequester, th.loggerFunc)
 		if err != nil {
 			return fmt.Errorf("Can not get router: %v", err), nil
 		}
@@ -305,7 +306,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, route := th.route(c, profile, instrument, th.cardStore, req)
+	err, route := th.route(c, profile, instrument, th.cardStore, validators.CardAuthorizationInstrumentRequester, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -333,6 +334,126 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 	}
 
 	if err := bankApi.Authorize(c, transaction, req); err != nil {
+		mess := err.Error()
+		transaction.Declined(&mess)
+	}
+
+	if err, notfound := th.transactionStore.Update(c, transaction); err != nil {
+		th.loggerFunc(c).Warningf("failed to update transaction: %v (notfound: %v)", err, notfound)
+	}
+
+	c.JSON(http.StatusOK, transaction)
+}
+
+func (th *transactionHandler) CardPreAuthorizeHandler(c *gin.Context) {
+	var req validators.CardPreAuthorizeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(c.Params.ByName("pid"))
+	if err !=  nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	err, _, profiles := th.profileStore.Query(c, repository.NewProfileSpecificationByID(id))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if len(profiles) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprintf("Profile with id=%v not found", id),
+		})
+		return
+	}
+
+	err, _, instruments := th.instrumentStore.Query(c, repository.NewInstrumentSpecificationByKey("card"))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if len(instruments) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprint("Card Instrument not found"),
+		})
+		return
+	}
+
+	profile := profiles[0]
+	instrument := instruments[0]
+
+	err, instrumentApi := plugins.InstrumentApi(
+		instrument,
+		th.cardStore,
+		th.loggerFunc,
+		validators.CardPreAuthorizationInstrumentRequester,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	err, instrumentInstance := instrumentApi.FromRequest(c, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	card, ok := instrumentInstance.(*repository.Card)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "instrumentInstance has wrong type",
+		})
+		return
+	}
+
+	err, route := th.route(c, profile, instrument, th.cardStore, validators.CardPreAuthorizationInstrumentRequester, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	err, bankApi := plugins.BankApi(th.cfg, route.Account, route.Instrument, th.sessionStore, th.loggerFunc)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	th.loggerFunc(c).Printf("using account: %v", route.Account)
+
+	transaction := repository.NewTransaction("preauthorize", &req.OrderId, profile, route.Account, instrument, card.Id, &req.Amount, &req.Customer, nil)
+
+	if err := th.transactionStore.Add(c, transaction); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err := bankApi.PreAuthorize(c, transaction, req); err != nil {
 		mess := err.Error()
 		transaction.Declined(&mess)
 	}

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/serg666/gateway/validators"
 	"github.com/serg666/gateway/plugins"
 	"github.com/serg666/gateway/plugins/routers"
 	"github.com/serg666/gateway/plugins/instruments/card"
@@ -16,10 +15,11 @@ var (
 	Id  = 1
 	Key = "visamaster"
 	Registered = plugins.RegisterRouter(Id, Key, func(
-		route           *repository.Route,
-		accountStore    repository.AccountRepository,
-		instrumentStore interface{},
-		logger          repository.LoggerFunc,
+		route               *repository.Route,
+		accountStore        repository.AccountRepository,
+		instrumentStore     interface{},
+		instrumentRequester plugins.InstrumentRequesterFunc,
+		logger              repository.LoggerFunc,
 	) (error, routers.Router) {
 		if *route.Instrument.Id != bankcard.Id {
 			return fmt.Errorf("visamaster router not sutable for instrument <%d>", *route.Instrument.Id), nil
@@ -40,10 +40,11 @@ var (
 		}
 
 		return nil, &VisaMasterRouter{
-			logger:          logger,
-			accountStore:    accountStore,
-			instrumentStore: instrumentStore,
-			settings:        &vms,
+			logger:              logger,
+			accountStore:        accountStore,
+			instrumentStore:     instrumentStore,
+			instrumentRequester: instrumentRequester,
+			settings:            &vms,
 		}
 	})
 )
@@ -54,10 +55,11 @@ type VisaMasterSettings struct {
 }
 
 type VisaMasterRouter struct {
-	logger          repository.LoggerFunc
-	accountStore    repository.AccountRepository
-	instrumentStore interface{}
-	settings        *VisaMasterSettings
+	logger              repository.LoggerFunc
+	accountStore        repository.AccountRepository
+	instrumentStore     interface{}
+	instrumentRequester plugins.InstrumentRequesterFunc
+	settings            *VisaMasterSettings
 }
 
 func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, request interface{}) error {
@@ -65,7 +67,7 @@ func (vmr *VisaMasterRouter) Route(c *gin.Context, route *repository.Route, requ
 		route.Instrument,
 		vmr.instrumentStore,
 		vmr.logger,
-		validators.CardAuthorizationInstrumentRequester,
+		vmr.instrumentRequester,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to get instrument api: %v", err)
