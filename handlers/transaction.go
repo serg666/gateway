@@ -265,7 +265,14 @@ func (th *transactionHandler) ReverseHandler(c *gin.Context) {
 
 	if req.Amount < *transaction.Amount && !*transaction.Account.PartialReversalEnabled {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": fmt.Sprintf("Incorrect amount: %d", req.Amount),
+			"message": fmt.Sprintf("Incorrect amount: %d, partial reversal not allowed", req.Amount),
+		})
+		return
+	}
+
+	if !*transaction.Account.ReversalEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Reversal not allowed",
 		})
 		return
 	}
@@ -291,6 +298,90 @@ func (th *transactionHandler) ReverseHandler(c *gin.Context) {
 	}
 
 	if err := bankApi.Reverse(c, newTransaction); err != nil {
+		mess := err.Error()
+		newTransaction.Declined(&mess)
+	}
+
+	if err, notfound := th.transactionStore.Update(c, newTransaction); err != nil {
+		th.loggerFunc(c).Warningf("failed to update transaction: %v (notfound: %v)", err, notfound)
+	}
+
+	c.JSON(http.StatusOK, newTransaction)
+}
+
+func (th *transactionHandler) RefundHandler(c *gin.Context) {
+	var req validators.RefundRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	err, transaction, bankApi := th.validate(c)
+	if err !=  nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if !transaction.IsSuccess() {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
+		})
+		return
+	}
+
+	if !transaction.IsAuth() {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("Transaction has wrong type: %s", *transaction.Type),
+		})
+		return
+	}
+
+	if req.Amount > *transaction.Amount {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("Incorrect amount: %d", req.Amount),
+		})
+		return
+	}
+
+	if req.Amount < *transaction.Amount && !*transaction.Account.PartialRefundEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("Incorrect amount: %d, partial refund not allowed", req.Amount),
+		})
+		return
+	}
+
+	if !*transaction.Account.RefundEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Refund not allowed",
+		})
+		return
+	}
+
+	th.loggerFunc(c).Printf("using account: %v", transaction.Account)
+
+	newTransaction := repository.NewTransaction(repository.REFUND,
+		transaction.OrderId,
+		transaction.Profile,
+		transaction.Account,
+		transaction.Instrument,
+		transaction.InstrumentId,
+		&req.Amount,
+		transaction.Customer,
+		transaction,
+	)
+
+	if err := th.transactionStore.Add(c, newTransaction); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err := bankApi.Refund(c, newTransaction); err != nil {
 		mess := err.Error()
 		newTransaction.Declined(&mess)
 	}
@@ -342,7 +433,7 @@ func (th *transactionHandler) ConfirmPreAuthHandler(c *gin.Context) {
 
 	if req.Amount < *transaction.Amount && !*transaction.Account.PartialConfirmEnabled {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": fmt.Sprintf("Incorrect amount: %d", req.Amount),
+			"message": fmt.Sprintf("Incorrect amount: %d, partial confirm not allowed", req.Amount),
 		})
 		return
 	}

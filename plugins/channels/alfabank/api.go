@@ -737,8 +737,49 @@ func (abc *AlfaBankChannel) Reverse(c *gin.Context, transaction *repository.Tran
 	return nil
 }
 
-func (abc *AlfaBankChannel) Refund(c *gin.Context) {
-	abc.logger(c).Print("refund")
+func (abc *AlfaBankChannel) Refund(c *gin.Context, transaction *repository.Transaction) error {
+	err, successRefsTotal := abc.transactionStore.TypeTurnOver(c, repository.NewTransactionSpecificationByReferenceIdAndStatus(
+		*transaction.Reference.Id,
+		repository.SUCCESS,
+	))
+	abc.logger(c).Printf("successRefsTotal: %v (%v)", successRefsTotal, err)
+
+	if err != nil {
+		return fmt.Errorf("can not get success references total: %v", err)
+	}
+
+	var refunds uint
+
+	if refundTurnOver, ok := (*successRefsTotal)[repository.REFUND]; ok {
+		refunds = refundTurnOver.Sum
+	}
+
+	availableAmount := *transaction.Reference.Amount - refunds
+	if availableAmount < *transaction.Amount {
+		return fmt.Errorf("incorrect amount: %d, availabe to refund: %d", *transaction.Amount, availableAmount)
+	}
+
+	data := url.Values{}
+	data.Set("userName", abc.settings.Login)
+	data.Set("password", abc.settings.Password)
+	data.Set("orderId", *transaction.Reference.RemoteId)
+	data.Set("amount", strconv.Itoa(int(*transaction.AmountConverted)))
+	transaction.RemoteId = transaction.Reference.RemoteId
+
+	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/refund.do", data.Encode())
+	if err != nil {
+		return fmt.Errorf("can not make refund request: %v", err)
+	}
+
+	rc, mess := abc.parseError(c, jsonResp)
+	if *rc != "0" {
+		transaction.ResponseCode = rc
+		return errors.New(*mess)
+	}
+
+	abc.updateTransaction(c, transaction)
+
+	return nil
 }
 
 func (abc *AlfaBankChannel) ProcessPares(c *gin.Context, transaction *repository.Transaction, pares string) error {

@@ -70,3 +70,7 @@ type ConfirmPreAuthRequest struct {
 type ReversalRequest struct {
 	ConfirmPreAuthRequest
 }
+
+type RefundRequest struct {
+	ConfirmPreAuthRequest
+}
