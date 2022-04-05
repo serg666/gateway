@@ -26,11 +26,12 @@ var (
 	Id  = 2
 	Key = "alfabank"
 	Registered = plugins.RegisterBankChannel(Id, Key, func(
-		cfg             *config.Config,
-		account         *repository.Account,
-		instrument      *repository.Instrument,
-		sessionStore    repository.SessionRepository,
-		logger          repository.LoggerFunc,
+		cfg              *config.Config,
+		account          *repository.Account,
+		instrument       *repository.Instrument,
+		sessionStore     repository.SessionRepository,
+		transactionStore repository.TransactionRepository,
+		logger           repository.LoggerFunc,
 	) (error, channels.BankChannel) {
 		if *instrument.Id != bankcard.Id {
 			return fmt.Errorf("alfabank channel not sutable for instrument <%d>", *instrument.Id), nil
@@ -51,10 +52,11 @@ var (
 		}
 
 		return nil, &AlfaBankChannel{
-			cfg:             cfg,
-			logger:          logger,
-			sessionStore:    sessionStore,
-			settings:        &abs,
+			cfg:              cfg,
+			logger:           logger,
+			sessionStore:     sessionStore,
+			transactionStore: transactionStore,
+			settings:         &abs,
 		}
 	})
 )
@@ -82,10 +84,11 @@ type AlfaBankSettings struct {
 }
 
 type AlfaBankChannel struct {
-	cfg             *config.Config
-	logger          repository.LoggerFunc
-	sessionStore    repository.SessionRepository
-	settings        *AlfaBankSettings
+	cfg              *config.Config
+	logger           repository.LoggerFunc
+	sessionStore     repository.SessionRepository
+	transactionStore repository.TransactionRepository
+	settings         *AlfaBankSettings
 }
 
 func (abc *AlfaBankChannel) maskParams(data string) string {
@@ -628,8 +631,59 @@ func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context, transaction *repository
 	return abc.processCard(c, transaction, req.Card, req.ThreeDSVer2TermUrl, req.BrowserInfo, "registerPreAuth.do")
 }
 
-func (abc *AlfaBankChannel) Confirm(c *gin.Context) {
-	abc.logger(c).Print("confirm")
+func (abc *AlfaBankChannel) Confirm(c *gin.Context, transaction *repository.Transaction) error {
+	err, successRefsTotal := abc.transactionStore.TypeTurnOver(c, repository.NewTransactionSpecificationByReferenceIdAndStatus(
+		*transaction.Reference.Id,
+		repository.SUCCESS,
+	))
+	abc.logger(c).Printf("successRefsTotal: %v (%v)", successRefsTotal, err)
+
+	if err != nil {
+		return fmt.Errorf("can not get success references total: %v", err)
+	}
+
+	var reversals uint
+	var confirms uint
+
+	if confirmTurnOver, ok := (*successRefsTotal)["confirmauth"]; ok {
+		confirms = confirmTurnOver.Sum
+	}
+
+	if confirms > 0 {
+		// @note: alfabank allow only one partial confirm
+		return fmt.Errorf("transaction has already confirmed: %d", confirms)
+	}
+
+	if reversalTurnOver, ok := (*successRefsTotal)["reversal"]; ok {
+		reversals = reversalTurnOver.Sum
+	}
+
+	availableAmount := *transaction.Reference.Amount - reversals - confirms
+	if availableAmount < *transaction.Amount {
+		return fmt.Errorf("incorrect amount: %d", *transaction.Amount)
+	}
+
+	data := url.Values{}
+	data.Set("userName", abc.settings.Login)
+	data.Set("password", abc.settings.Password)
+	data.Set("orderId", *transaction.Reference.RemoteId)
+	data.Set("amount", strconv.Itoa(int(*transaction.AmountConverted)))
+	transaction.RemoteId = transaction.Reference.RemoteId
+
+	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/deposit.do", data.Encode())
+	if err != nil {
+		return fmt.Errorf("can not make deposit request: %v", err)
+	}
+
+	rc, mess := abc.parseError(c, jsonResp)
+	if *rc != "0" {
+		transaction.ResponseCode = rc
+		return errors.New(*mess)
+	}
+
+	abc.updateTransaction(c, transaction)
+
+	return nil
 }
 
 func (abc *AlfaBankChannel) Reverse(c *gin.Context) {

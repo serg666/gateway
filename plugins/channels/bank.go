@@ -8,7 +8,7 @@ import (
 type BankChannel interface {
 	Authorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error
 	PreAuthorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error
-	Confirm(c *gin.Context)
+	Confirm(c *gin.Context, transaction *repository.Transaction) error
 	Reverse(c *gin.Context)
 	Refund(c *gin.Context)
 	ProcessCres(c *gin.Context, transaction *repository.Transaction, cres string) error

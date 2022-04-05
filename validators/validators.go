@@ -62,3 +62,7 @@ type ProcessCresRequest struct {
 type ProcessParesRequest struct {
 	Pares string `json:"pares" binding:"required"`
 }
+
+type ConfirmPreAuthRequest struct {
+	Amount uint `json:"amount" binding:"required,min=1"`
+}
