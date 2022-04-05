@@ -56,8 +56,9 @@ func (kbc *KvellBankChannel) Confirm(c *gin.Context, transaction *repository.Tra
 	return nil
 }
 
-func (kbc *KvellBankChannel) Reverse(c *gin.Context) {
+func (kbc *KvellBankChannel) Reverse(c *gin.Context, transaction *repository.Transaction) error {
 	kbc.logger(c).Print("reverse int")
+	return nil
 }
 
 func (kbc *KvellBankChannel) Refund(c *gin.Context) {

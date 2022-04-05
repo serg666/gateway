@@ -9,7 +9,7 @@ type BankChannel interface {
 	Authorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error
 	PreAuthorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error
 	Confirm(c *gin.Context, transaction *repository.Transaction) error
-	Reverse(c *gin.Context)
+	Reverse(c *gin.Context, transaction *repository.Transaction) error
 	Refund(c *gin.Context)
 	ProcessCres(c *gin.Context, transaction *repository.Transaction, cres string) error
 	ProcessPares(c *gin.Context, transaction *repository.Transaction, pares string) error

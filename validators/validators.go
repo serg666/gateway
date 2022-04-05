@@ -66,3 +66,7 @@ type ProcessParesRequest struct {
 type ConfirmPreAuthRequest struct {
 	Amount uint `json:"amount" binding:"required,min=1"`
 }
+
+type ReversalRequest struct {
+	ConfirmPreAuthRequest
+}

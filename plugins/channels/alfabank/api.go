@@ -497,7 +497,9 @@ func (abc *AlfaBankChannel) updateTransaction(c *gin.Context, transaction *repos
 			switch state {
 			case
 				"1",
-				"2":
+				"2",
+				"3",
+				"4":
 				transaction.Success()
 			case "6":
 				transaction.Declined(actionCodeDescr)
@@ -645,7 +647,7 @@ func (abc *AlfaBankChannel) Confirm(c *gin.Context, transaction *repository.Tran
 	var reversals uint
 	var confirms uint
 
-	if confirmTurnOver, ok := (*successRefsTotal)["confirmauth"]; ok {
+	if confirmTurnOver, ok := (*successRefsTotal)[repository.CONFIRMAUTH]; ok {
 		confirms = confirmTurnOver.Sum
 	}
 
@@ -654,13 +656,13 @@ func (abc *AlfaBankChannel) Confirm(c *gin.Context, transaction *repository.Tran
 		return fmt.Errorf("transaction has already confirmed: %d", confirms)
 	}
 
-	if reversalTurnOver, ok := (*successRefsTotal)["reversal"]; ok {
+	if reversalTurnOver, ok := (*successRefsTotal)[repository.REVERSAL]; ok {
 		reversals = reversalTurnOver.Sum
 	}
 
 	availableAmount := *transaction.Reference.Amount - reversals - confirms
 	if availableAmount < *transaction.Amount {
-		return fmt.Errorf("incorrect amount: %d", *transaction.Amount)
+		return fmt.Errorf("incorrect amount: %d, availabe to confirm: %d", *transaction.Amount, availableAmount)
 	}
 
 	data := url.Values{}
@@ -686,8 +688,53 @@ func (abc *AlfaBankChannel) Confirm(c *gin.Context, transaction *repository.Tran
 	return nil
 }
 
-func (abc *AlfaBankChannel) Reverse(c *gin.Context) {
-	abc.logger(c).Print("reverse")
+func (abc *AlfaBankChannel) Reverse(c *gin.Context, transaction *repository.Transaction) error {
+	if *transaction.Amount != *transaction.Reference.Amount {
+		// @note: alfabank not allowed partial reversal
+		return fmt.Errorf("partial reverse not allowed: %d", *transaction.Amount)
+	}
+
+	err, successRefsTotal := abc.transactionStore.TypeTurnOver(c, repository.NewTransactionSpecificationByReferenceIdAndStatus(
+		*transaction.Reference.Id,
+		repository.SUCCESS,
+	))
+	abc.logger(c).Printf("successRefsTotal: %v (%v)", successRefsTotal, err)
+
+	if err != nil {
+		return fmt.Errorf("can not get success references total: %v", err)
+	}
+
+	var reversals uint
+
+	if reversalTurnOver, ok := (*successRefsTotal)[repository.REVERSAL]; ok {
+		reversals = reversalTurnOver.Sum
+	}
+
+	if reversals > 0 {
+		// @note: alfabank allow only one reversal
+		return fmt.Errorf("transaction has already reversed: %d", reversals)
+	}
+
+	data := url.Values{}
+	data.Set("userName", abc.settings.Login)
+	data.Set("password", abc.settings.Password)
+	data.Set("orderId", *transaction.Reference.RemoteId)
+	transaction.RemoteId = transaction.Reference.RemoteId
+
+	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/reverse.do", data.Encode())
+	if err != nil {
+		return fmt.Errorf("can not make reverse request: %v", err)
+	}
+
+	rc, mess := abc.parseError(c, jsonResp)
+	if *rc != "0" {
+		transaction.ResponseCode = rc
+		return errors.New(*mess)
+	}
+
+	abc.updateTransaction(c, transaction)
+
+	return nil
 }
 
 func (abc *AlfaBankChannel) Refund(c *gin.Context) {

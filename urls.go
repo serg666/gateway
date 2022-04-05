@@ -82,7 +82,8 @@ func MakeHandler(
 	// @note: payment interface
 	handler.POST("/profiles/:pid/transactions/authorize/card", transactionHandler.CardAuthorizeHandler)
 	handler.POST("/profiles/:pid/transactions/preauthorize/card", transactionHandler.CardPreAuthorizeHandler)
-	handler.POST("/profiles/:pid/transactions/:tid/confirmpreauth", transactionHandler.ConfirmPreAuthHandler)
+	handler.POST("/profiles/:pid/transactions/:tid/confirm", transactionHandler.ConfirmPreAuthHandler)
+	handler.POST("/profiles/:pid/transactions/:tid/reverse", transactionHandler.ReverseHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/completemethodurl", transactionHandler.CompleteMethodUrlHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/processcres", transactionHandler.ProcessCresHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/processpares", transactionHandler.ProcessParesHandler)
