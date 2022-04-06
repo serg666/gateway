@@ -202,7 +202,11 @@ CREATE TABLE public.transactions (
     reference_id integer,
     threedsecure10 jsonb,
     threedsecure20 jsonb,
-    threedsmethodurl jsonb
+    threedsmethodurl jsonb,
+    error_message text,
+    additional_data jsonb,
+    customer text NOT NULL,
+    browser_info jsonb
 );
 
 
@@ -352,6 +356,13 @@ ALTER TABLE ONLY public.routes
 
 ALTER TABLE ONLY public.transactions
     ADD CONSTRAINT transactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ref_status_idx; Type: INDEX; Schema: public; Owner: kvell
+--
+
+CREATE INDEX ref_status_idx ON public.transactions USING btree (reference_id, status);
 
 
 --
