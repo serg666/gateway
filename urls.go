@@ -85,6 +85,7 @@ func MakeHandler(
 	handler.POST("/profiles/:pid/transactions/:tid/confirm", transactionHandler.ConfirmPreAuthHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/reverse", transactionHandler.ReverseHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/refund", transactionHandler.RefundHandler)
+	handler.POST("/profiles/:pid/transactions/:tid/rebill", transactionHandler.RebillHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/completemethodurl", transactionHandler.CompleteMethodUrlHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/processcres", transactionHandler.ProcessCresHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/processpares", transactionHandler.ProcessParesHandler)

@@ -207,6 +207,7 @@ type BankChannelFunc func (
 	*config.Config,
 	*repository.Account,
 	*repository.Instrument,
+	interface{},
 	repository.SessionRepository,
 	repository.TransactionRepository,
 	repository.LoggerFunc,
@@ -226,6 +227,7 @@ func BankApi(
 	cfg *config.Config,
 	account *repository.Account,
 	instrument *repository.Instrument,
+	instrumentStore interface{},
 	sessionStore repository.SessionRepository,
 	transactionStore repository.TransactionRepository,
 	logger repository.LoggerFunc,
@@ -233,7 +235,7 @@ func BankApi(
 	cid := *account.Channel.Id
 
 	if val, ok := BankChannels[cid]; ok {
-		err, api := val.Plugin(cfg, account, instrument, sessionStore, transactionStore, logger)
+		err, api := val.Plugin(cfg, account, instrument, instrumentStore, sessionStore, transactionStore, logger)
 		if err != nil {
 			return fmt.Errorf("failed to initiate bank api: %v", err), nil
 		}

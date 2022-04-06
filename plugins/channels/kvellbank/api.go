@@ -17,6 +17,7 @@ var (
 		cfg              *config.Config,
 		account          *repository.Account,
 		instrument       *repository.Instrument,
+		instrumentStore  interface{},
 		sessionStore     repository.SessionRepository,
 		transactionStore repository.TransactionRepository,
 		logger           repository.LoggerFunc,
@@ -28,6 +29,7 @@ var (
 		return nil, &KvellBankChannel{
 			cfg:              cfg,
 			sessionStore:     sessionStore,
+			instrumentStore:  instrumentStore,
 			transactionStore: transactionStore,
 			logger:           logger,
 		}
@@ -38,6 +40,7 @@ type KvellBankChannel struct {
 	cfg              *config.Config
 	sessionStore     repository.SessionRepository
 	transactionStore repository.TransactionRepository
+	instrumentStore  interface{}
 	logger           repository.LoggerFunc
 }
 
@@ -63,6 +66,11 @@ func (kbc *KvellBankChannel) Reverse(c *gin.Context, transaction *repository.Tra
 
 func (kbc *KvellBankChannel) Refund(c *gin.Context, transaction *repository.Transaction) error {
 	kbc.logger(c).Print("refund int")
+	return nil
+}
+
+func (kbc *KvellBankChannel) Rebill(c *gin.Context, transaction *repository.Transaction) error {
+	kbc.logger(c).Print("rebill int")
 	return nil
 }
 

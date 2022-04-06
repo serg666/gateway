@@ -29,6 +29,7 @@ var (
 		cfg              *config.Config,
 		account          *repository.Account,
 		instrument       *repository.Instrument,
+		instrumentStore  interface{},
 		sessionStore     repository.SessionRepository,
 		transactionStore repository.TransactionRepository,
 		logger           repository.LoggerFunc,
@@ -54,6 +55,7 @@ var (
 		return nil, &AlfaBankChannel{
 			cfg:              cfg,
 			logger:           logger,
+			instrumentStore:  instrumentStore,
 			sessionStore:     sessionStore,
 			transactionStore: transactionStore,
 			settings:         &abs,
@@ -86,6 +88,7 @@ type AlfaBankSettings struct {
 type AlfaBankChannel struct {
 	cfg              *config.Config
 	logger           repository.LoggerFunc
+	instrumentStore  interface{}
 	sessionStore     repository.SessionRepository
 	transactionStore repository.TransactionRepository
 	settings         *AlfaBankSettings
@@ -777,6 +780,62 @@ func (abc *AlfaBankChannel) Refund(c *gin.Context, transaction *repository.Trans
 	}
 
 	abc.updateTransaction(c, transaction)
+
+	return nil
+}
+
+func (abc *AlfaBankChannel) Rebill(c *gin.Context, transaction *repository.Transaction) error {
+	data := url.Values{}
+	data.Set("userName", abc.settings.Login)
+	data.Set("password", abc.settings.Password)
+	data.Set("orderNumber", strconv.Itoa(*transaction.Id))
+	data.Set("currency", strconv.Itoa(*transaction.CurrencyConverted.NumericCode))
+	data.Set("features", "AUTO_PAYMENT")
+	data.Set("amount", strconv.Itoa(int(*transaction.AmountConverted)))
+	data.Set("clientId", *transaction.Customer)
+	// @note: we do not use return url at all
+	data.Set("returnUrl", "1")
+
+	err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/register.do", data.Encode())
+	if err != nil {
+		return fmt.Errorf("can not make register order request: %v", err)
+	}
+
+	if orderId, ok := (*jsonResp)["orderId"]; ok {
+		if remoteId, ok := orderId.(string); ok {
+			transaction.RemoteId = &remoteId
+
+			additionalData := transaction.Reference.AdditionalData
+			if additionalData == nil {
+				return errors.New("reference has not additional data")
+			}
+
+			if bindingId, ok := (*additionalData)["bindingId"]; ok {
+				if bid, ok := bindingId.(string); ok {
+					data := url.Values{}
+					data.Set("userName", abc.settings.Login)
+					data.Set("password", abc.settings.Password)
+					data.Set("mdOrder", remoteId)
+					data.Set("ip", transaction.Reference.BrowserInfo.IP)
+					data.Set("bindingId", bid)
+					abc.makeRequest(c, "POST", "ab/rest/paymentOrderBinding.do", data.Encode())
+					abc.updateTransaction(c, transaction)
+				} else {
+					return errors.New("bindingId has wrong type")
+				}
+			} else {
+				return errors.New("additional data has not bindingId")
+			}
+
+		} else {
+			return errors.New("orderId has wrong type")
+		}
+	} else {
+		rc, mess := abc.parseError(c, jsonResp)
+
+		transaction.ResponseCode = rc
+		return errors.New(*mess)
+	}
 
 	return nil
 }

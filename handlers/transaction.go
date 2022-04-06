@@ -103,7 +103,15 @@ func (th *transactionHandler) validate(c *gin.Context) (error, *repository.Trans
 		return fmt.Errorf("incorrect transaction id: %v", tid), nil, nil
 	}
 
-	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, th.sessionStore, th.transactionStore, th.loggerFunc)
+	var instrumentStore interface{}
+
+	// @note: depends on instrument type
+	switch *transaction.Instrument.Key {
+	case "card":
+		instrumentStore = th.cardStore
+	}
+
+	err, bankApi := plugins.BankApi(th.cfg, transaction.Account, transaction.Instrument, instrumentStore, th.sessionStore, th.transactionStore, th.loggerFunc)
 	if err != nil {
 		return fmt.Errorf("faild to get bank api: %v", err), nil, nil
 	}
@@ -395,6 +403,77 @@ func (th *transactionHandler) RefundHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, newTransaction)
 }
 
+func (th *transactionHandler) RebillHandler(c *gin.Context) {
+	var req validators.RebillRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	err, transaction, bankApi := th.validate(c)
+	if err !=  nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if !transaction.IsSuccess() {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("Transaction has wrong state: %s", *transaction.Status),
+		})
+		return
+	}
+
+	if !(transaction.IsAuth() || transaction.IsPreAuth()) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("Transaction has wrong type: %s", *transaction.Type),
+		})
+		return
+	}
+
+	if !*transaction.Account.RebillEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Rebill not allowed",
+		})
+		return
+	}
+
+	th.loggerFunc(c).Printf("using account: %v", transaction.Account)
+
+	newTransaction := repository.NewTransaction(repository.REBILL,
+		transaction.OrderId,
+		transaction.Profile,
+		transaction.Account,
+		transaction.Instrument,
+		transaction.InstrumentId,
+		&req.Amount,
+		transaction.Customer,
+		transaction,
+		nil,
+	)
+
+	if err := th.transactionStore.Add(c, newTransaction); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err := bankApi.Rebill(c, newTransaction); err != nil {
+		mess := err.Error()
+		newTransaction.Declined(&mess)
+	}
+
+	if err, notfound := th.transactionStore.Update(c, newTransaction); err != nil {
+		th.loggerFunc(c).Warningf("failed to update transaction: %v (notfound: %v)", err, notfound)
+	}
+
+	c.JSON(http.StatusOK, newTransaction)
+}
+
 func (th *transactionHandler) ConfirmPreAuthHandler(c *gin.Context) {
 	var req validators.ConfirmPreAuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -562,7 +641,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, bankApi := plugins.BankApi(th.cfg, route.Account, route.Instrument, th.sessionStore, th.transactionStore,th.loggerFunc)
+	err, bankApi := plugins.BankApi(th.cfg, route.Account, route.Instrument, th.cardStore, th.sessionStore, th.transactionStore,th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -693,7 +772,7 @@ func (th *transactionHandler) CardPreAuthorizeHandler(c *gin.Context) {
 		return
 	}
 
-	err, bankApi := plugins.BankApi(th.cfg, route.Account, route.Instrument, th.sessionStore, th.transactionStore, th.loggerFunc)
+	err, bankApi := plugins.BankApi(th.cfg, route.Account, route.Instrument, th.cardStore, th.sessionStore, th.transactionStore, th.loggerFunc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
