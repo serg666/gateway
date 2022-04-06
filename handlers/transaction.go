@@ -342,7 +342,7 @@ func (th *transactionHandler) RefundHandler(c *gin.Context) {
 		return
 	}
 
-	if !transaction.IsAuth() {
+	if !(transaction.IsAuth() || transaction.IsRebill()) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": fmt.Sprintf("Transaction has wrong type: %s", *transaction.Type),
 		})
