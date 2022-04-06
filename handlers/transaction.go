@@ -403,6 +403,18 @@ func (th *transactionHandler) RefundHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, newTransaction)
 }
 
+func (th *transactionHandler) GetTransactionHandler(c *gin.Context) {
+	err, transaction, _ := th.validate(c)
+	if err !=  nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, transaction)
+}
+
 func (th *transactionHandler) RebillHandler(c *gin.Context) {
 	var req validators.RebillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -32,7 +32,7 @@ type profileHandler struct {
 }
 
 func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
-	id, err := strconv.Atoi(c.Params.ByName("id"))
+	id, err := strconv.Atoi(c.Params.ByName("pid"))
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -62,7 +62,7 @@ func (ph *profileHandler) DeleteProfileHandler(c *gin.Context) {
 }
 
 func (ph *profileHandler) GetProfileHandler(c *gin.Context) {
-	id, err := strconv.Atoi(c.Params.ByName("id"))
+	id, err := strconv.Atoi(c.Params.ByName("pid"))
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),
@@ -98,7 +98,7 @@ func (ph *profileHandler) PatchProfileHandler(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.Atoi(c.Params.ByName("id"))
+	id, err := strconv.Atoi(c.Params.ByName("pid"))
 	if err !=  nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": err.Error(),

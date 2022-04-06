@@ -89,6 +89,7 @@ func MakeHandler(
 	handler.POST("/profiles/:pid/transactions/:tid/completemethodurl", transactionHandler.CompleteMethodUrlHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/processcres", transactionHandler.ProcessCresHandler)
 	handler.POST("/profiles/:pid/transactions/:tid/processpares", transactionHandler.ProcessParesHandler)
+	handler.GET("/profiles/:pid/transactions/:tid", transactionHandler.GetTransactionHandler)
 
 	// @note: admin interface (should be moved to another web service)
 	handler.POST("/routes", routeHandler.CreateRouteHandler)
@@ -105,9 +106,9 @@ func MakeHandler(
 
 	handler.POST("/profiles", profileHandler.CreateProfileHandler)
 	handler.GET("/profiles", profileHandler.GetProfilesHandler)
-	handler.DELETE("/profiles/:id", profileHandler.DeleteProfileHandler)
-	handler.GET("/profiles/:id", profileHandler.GetProfileHandler)
-	handler.PATCH("/profiles/:id", profileHandler.PatchProfileHandler)
+	handler.DELETE("/profiles/:pid", profileHandler.DeleteProfileHandler)
+	handler.GET("/profiles/:pid", profileHandler.GetProfileHandler)
+	handler.PATCH("/profiles/:pid", profileHandler.PatchProfileHandler)
 
 	handler.POST("/currencies", currencyHandler.CreateCurrencyHandler)
 	handler.GET("/currencies", currencyHandler.GetCurrenciesHandler)
