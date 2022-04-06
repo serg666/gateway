@@ -288,6 +288,7 @@ func (th *transactionHandler) ReverseHandler(c *gin.Context) {
 		&req.Amount,
 		transaction.Customer,
 		transaction,
+		nil,
 	)
 
 	if err := th.transactionStore.Add(c, newTransaction); err != nil {
@@ -372,6 +373,7 @@ func (th *transactionHandler) RefundHandler(c *gin.Context) {
 		&req.Amount,
 		transaction.Customer,
 		transaction,
+		nil,
 	)
 
 	if err := th.transactionStore.Add(c, newTransaction); err != nil {
@@ -449,6 +451,7 @@ func (th *transactionHandler) ConfirmPreAuthHandler(c *gin.Context) {
 		&req.Amount,
 		transaction.Customer,
 		transaction,
+		nil,
 	)
 
 	if err := th.transactionStore.Add(c, newTransaction); err != nil {
@@ -579,6 +582,7 @@ func (th *transactionHandler) CardAuthorizeHandler(c *gin.Context) {
 		&req.Amount,
 		&req.Customer,
 		nil,
+		&req.BrowserInfo,
 	)
 
 	if err := th.transactionStore.Add(c, transaction); err != nil {
@@ -709,6 +713,7 @@ func (th *transactionHandler) CardPreAuthorizeHandler(c *gin.Context) {
 		&req.Amount,
 		&req.Customer,
 		nil,
+		&req.BrowserInfo,
 	)
 
 	if err := th.transactionStore.Add(c, transaction); err != nil {

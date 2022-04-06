@@ -141,7 +141,7 @@ func (abc *AlfaBankChannel) makeRequest(
 
 func (abc *AlfaBankChannel) putBrowserInfo(
 	c *gin.Context,
-	browserInfo validators.BrowserInfo,
+	browserInfo *repository.BrowserInfo,
 	serverUrl *string,
 	transId *string,
 ) error {
@@ -517,7 +517,6 @@ func (abc *AlfaBankChannel) processCard(
 	transaction *repository.Transaction,
 	card bankcard.Card,
 	termUrl string,
-	browserInfo validators.BrowserInfo,
 	registerMethod string,
 ) error {
 	data := url.Values{}
@@ -553,7 +552,7 @@ func (abc *AlfaBankChannel) processCard(
 			if err, jsonResp := abc.makeRequest(c, "POST", "ab/rest/paymentorder.do", data.Encode()); err == nil {
 				if is3ds20, transId, serverUrl, methodUrl, methodData := abc.is3DS20(c, jsonResp); is3ds20 {
 					//3ds20
-					if err := abc.putBrowserInfo(c, browserInfo, serverUrl, transId); err != nil {
+					if err := abc.putBrowserInfo(c, transaction.BrowserInfo, serverUrl, transId); err != nil {
 						abc.logger(c).Warningf("can not put browser info: %v", err)
 					}
 					data.Set("threeDSServerTransId", *transId)
@@ -621,7 +620,7 @@ func (abc *AlfaBankChannel) Authorize(c *gin.Context, transaction *repository.Tr
 		return fmt.Errorf("request has wrong type")
 	}
 
-	return abc.processCard(c, transaction, req.Card, req.ThreeDSVer2TermUrl, req.BrowserInfo, "register.do")
+	return abc.processCard(c, transaction, req.Card, req.ThreeDSVer2TermUrl, "register.do")
 }
 
 func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context, transaction *repository.Transaction, request interface{}) error {
@@ -630,7 +629,7 @@ func (abc *AlfaBankChannel) PreAuthorize(c *gin.Context, transaction *repository
 		return fmt.Errorf("request has wrong type")
 	}
 
-	return abc.processCard(c, transaction, req.Card, req.ThreeDSVer2TermUrl, req.BrowserInfo, "registerPreAuth.do")
+	return abc.processCard(c, transaction, req.Card, req.ThreeDSVer2TermUrl, "registerPreAuth.do")
 }
 
 func (abc *AlfaBankChannel) Confirm(c *gin.Context, transaction *repository.Transaction) error {
