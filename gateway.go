@@ -40,7 +40,8 @@ func main() {
 
 	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
 	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
-	profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), currencyStore, loggerFunc)
+	//profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), currencyStore, loggerFunc)
+	profileStore := repository.NewPGPoolProfileStore(pgPool, currencyStore, loggerFunc)
 	sessionStore := repository.NewOrderedMapSessionStore(orderedmap.New(), loggerFunc)
 	cardStore := repository.NewOrderedMapCardStore(orderedmap.New(), loggerFunc)
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)

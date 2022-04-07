@@ -128,6 +128,42 @@ CREATE TABLE public.instruments (
 ALTER TABLE public.instruments OWNER TO kvell;
 
 --
+-- Name: profiles; Type: TABLE; Schema: public; Owner: kvell
+--
+
+CREATE TABLE public.profiles (
+    id integer NOT NULL,
+    key character varying(255) NOT NULL,
+    description text,
+    currency_id integer NOT NULL
+);
+
+
+ALTER TABLE public.profiles OWNER TO kvell;
+
+--
+-- Name: profiles_id_seq; Type: SEQUENCE; Schema: public; Owner: kvell
+--
+
+CREATE SEQUENCE public.profiles_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.profiles_id_seq OWNER TO kvell;
+
+--
+-- Name: profiles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: kvell
+--
+
+ALTER SEQUENCE public.profiles_id_seq OWNED BY public.profiles.id;
+
+
+--
 -- Name: routers; Type: TABLE; Schema: public; Owner: kvell
 --
 
@@ -249,6 +285,13 @@ ALTER TABLE ONLY public.currencies ALTER COLUMN id SET DEFAULT nextval('public.c
 
 
 --
+-- Name: profiles id; Type: DEFAULT; Schema: public; Owner: kvell
+--
+
+ALTER TABLE ONLY public.profiles ALTER COLUMN id SET DEFAULT nextval('public.profiles_id_seq'::regclass);
+
+
+--
 -- Name: routes id; Type: DEFAULT; Schema: public; Owner: kvell
 --
 
@@ -316,6 +359,14 @@ ALTER TABLE ONLY public.instruments
 
 ALTER TABLE ONLY public.instruments
     ADD CONSTRAINT instruments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: profiles profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: kvell
+--
+
+ALTER TABLE ONLY public.profiles
+    ADD CONSTRAINT profiles_pkey PRIMARY KEY (id);
 
 
 --
@@ -389,6 +440,14 @@ ALTER TABLE ONLY public.accounts
 
 
 --
+-- Name: profiles profiles_currency_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: kvell
+--
+
+ALTER TABLE ONLY public.profiles
+    ADD CONSTRAINT profiles_currency_id_fkey FOREIGN KEY (currency_id) REFERENCES public.currencies(id) ON UPDATE RESTRICT ON DELETE RESTRICT;
+
+
+--
 -- Name: routes routes_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: kvell
 --
 
@@ -442,6 +501,14 @@ ALTER TABLE ONLY public.transactions
 
 ALTER TABLE ONLY public.transactions
     ADD CONSTRAINT transactions_instrument_id_fkey FOREIGN KEY (instrument_id) REFERENCES public.instruments(id) ON UPDATE RESTRICT ON DELETE RESTRICT;
+
+
+--
+-- Name: transactions transactions_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: kvell
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON UPDATE RESTRICT ON DELETE RESTRICT;
 
 
 --
