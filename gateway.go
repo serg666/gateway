@@ -38,12 +38,15 @@ func main() {
 		return cfg.LogRusLogger(c)
 	}
 
+	client.Client = cfg.HttpClient()
+
 	//currencyStore := repository.NewOrderedMapCurrencyStore(orderedmap.New(), loggerFunc)
 	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
 	//profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), currencyStore, loggerFunc)
 	profileStore := repository.NewPGPoolProfileStore(pgPool, currencyStore, loggerFunc)
 	sessionStore := repository.NewOrderedMapSessionStore(orderedmap.New(), loggerFunc)
-	cardStore := repository.NewOrderedMapCardStore(orderedmap.New(), loggerFunc)
+	//cardStore := repository.NewOrderedMapCardStore(orderedmap.New(), loggerFunc)
+	cardStore := repository.NewHttpClientCardStore(cfg.CardStore.Url, client.Client, loggerFunc)
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
 	accountStore := repository.NewPGPoolAccountStore(pgPool, currencyStore, channelStore, loggerFunc)
 	instrumentStore := repository.NewPGPoolInstrumentStore(pgPool, loggerFunc)
@@ -119,8 +122,6 @@ func main() {
 		cfg,
 		loggerFunc,
     )
-
-	client.Client = cfg.HttpClient()
 
 	// Run the server
 	cfg.RunServer(handler, loggerFunc)

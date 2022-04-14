@@ -68,6 +68,9 @@ type Config struct {
 			Dsn string `yaml:"dsn"`
 		} `yaml:"default"`
 	} `yaml:"databases"`
+	CardStore struct {
+		Url string `yaml:"url"`
+	} `yaml:"cardstore"`
 }
 
 func (cfg *Config) LogRusLogger(c interface{}) logrus.FieldLogger {

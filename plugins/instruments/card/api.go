@@ -78,7 +78,7 @@ func (bc *BankCard) FromRequest(c *gin.Context, request interface{}) (error, int
 
 	card := &repository.Card{
 		PAN:     &pan,
-		ExpDate: &bankCardReq.ExpDate.Time,
+		ExpDate: &repository.ExpDate{bankCardReq.ExpDate.Time},
 		Holder:  &bankCardReq.Holder,
 	}
 
