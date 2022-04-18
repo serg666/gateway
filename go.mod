@@ -4,11 +4,11 @@ go 1.17
 
 require (
 	github.com/durango/go-credit-card v0.0.0-20220404131259-a9e175ba4082
-	github.com/gin-contrib/requestid v0.0.3
+	github.com/gin-contrib/requestid v0.0.4
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-playground/validator/v10 v10.10.1
 	github.com/mileusna/useragent v1.0.2
-	github.com/serg666/repository v0.0.0-20220415121414-4fb1af85cb82
+	github.com/serg666/repository v0.0.0-20220418145700-d2dc48f36a1f
 	github.com/sirupsen/logrus v1.8.1
 	github.com/wk8/go-ordered-map v0.2.0
 	gopkg.in/yaml.v2 v2.4.0
