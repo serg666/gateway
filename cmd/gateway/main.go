@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"github.com/sirupsen/logrus"
-	"github.com/wk8/go-ordered-map"
+	//"github.com/wk8/go-ordered-map"
 	"github.com/serg666/repository"
 	"github.com/serg666/gateway/client"
 	"github.com/serg666/gateway/config"
@@ -44,7 +44,8 @@ func main() {
 	currencyStore := repository.NewPGPoolCurrencyStore(pgPool, loggerFunc)
 	//profileStore := repository.NewOrderedMapProfileStore(orderedmap.New(), currencyStore, loggerFunc)
 	profileStore := repository.NewPGPoolProfileStore(pgPool, currencyStore, loggerFunc)
-	sessionStore := repository.NewOrderedMapSessionStore(orderedmap.New(), loggerFunc)
+	//sessionStore := repository.NewOrderedMapSessionStore(orderedmap.New(), loggerFunc)
+	sessionStore := repository.NewHttpClientSessionStore(cfg.CardStore.Url, client.Client, loggerFunc)
 	//cardStore := repository.NewOrderedMapCardStore(orderedmap.New(), loggerFunc)
 	cardStore := repository.NewHttpClientCardStore(cfg.CardStore.Url, client.Client, loggerFunc)
 	channelStore := repository.NewPGPoolChannelStore(pgPool, loggerFunc)
